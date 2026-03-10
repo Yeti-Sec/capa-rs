@@ -39,7 +39,7 @@ tabled = "0.15"
 
 # Parallelism
 rayon = "1.8"
-dashmap = "5.5"
+dashmap = "6.1"
 
 # Binary analysis
 goblin = "0.10"
