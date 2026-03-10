@@ -35,7 +35,7 @@ env_logger = "0.10"
 
 # CLI
 clap = { version = "4.4", features = ["derive"] }
-tabled = "0.15"
+tabled = "0.20"
 
 # Parallelism
 rayon = "1.8"
