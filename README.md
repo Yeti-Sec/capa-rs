@@ -1,0 +1,332 @@
+# capa-rs
+
+Rust reimplementation of [CAPA](https://github.com/mandiant/capa) - Mandiant's open-source tool for identifying capabilities in executable files. Analyzes PE, ELF, .NET, and shellcode using CAPA's YAML rule format.
+
+![capa-rs demo](demos/all_samples.gif)
+
+<details>
+<summary>Per-sample demos</summary>
+
+| Sample | Demo |
+|--------|------|
+| .NET assembly | ![dotnet](demos/dotnet.gif) |
+| ELF x86-64 | ![elf](demos/elf.gif) |
+| Golang PE32 | ![golang](demos/golang.gif) |
+| GraalVM PE64 | ![graalvm](demos/graalvm.gif) |
+| Cobalt Strike beacon | ![beacon](demos/shellcode_beacon.gif) |
+| Cobalt Strike beacon v2 | ![beacon2](demos/shellcode_beacon2.gif) |
+
+</details>
+
+## Quick Start
+
+```bash
+# Clone and build
+git clone https://github.com/yeti-sec/capa-rs.git
+cd capa-rs
+cargo build --release
+
+# Analyze a binary
+./target/release/capa-rs -r capa-rules malware.exe
+```
+
+## Features
+
+- **Fast**: 10-50x faster than Python CAPA using iced-x86 disassembler (>250 MB/s throughput)
+- **Single Binary**: No Python runtime required (~5MB statically linked)
+- **Compatible**: Uses existing CAPA YAML rules (1000+ bundled)
+- **Pure Rust**: No C/C++ dependencies in default build
+- **Cross-Platform**: Builds on Windows, Linux, and macOS
+- **.NET Support**: CIL bytecode and metadata analysis via [dotscope](https://github.com/BinFlip/dotscope)
+- **Integration Ready**: JSON output for downstream tooling
+
+## Installation
+
+### Prerequisites
+
+Install Rust via [rustup](https://rustup.rs):
+```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+```
+
+### Build
+
+```bash
+# Default build (x86/x64 analysis)
+cargo build --release
+
+# With .NET CIL analysis
+cargo build --release --features dotnet
+```
+
+The binary will be at `target/release/capa-rs` (or `capa-rs.exe` on Windows).
+
+### Using just (optional)
+
+[just](https://github.com/casey/just) provides convenient build commands:
+
+```bash
+cargo install just
+just build-release          # Default release build
+just build-release-dotnet   # With .NET support
+```
+
+## Usage
+
+```bash
+# Basic analysis (auto-detect format)
+capa-rs -r capa-rules malware.exe
+
+# JSON output
+capa-rs -r capa-rules -j malware.exe
+
+# Verbose output (show matched addresses)
+capa-rs -r capa-rules -v malware.exe
+
+# Filter by namespace
+capa-rs -r capa-rules -n "anti-analysis" malware.exe
+
+# Shellcode analysis (requires explicit format)
+capa-rs -f sc64 -r capa-rules shellcode.bin    # 64-bit
+capa-rs -f sc32 -r capa-rules shellcode.bin    # 32-bit
+
+# .NET analysis (requires dotnet feature)
+capa-rs -f dotnet -r capa-rules assembly.exe
+
+# Export extracted features to JSON
+capa-rs -r capa-rules --dump-features malware.exe > features.json
+
+# Use pre-extracted features (skip disassembly)
+capa-rs -r capa-rules -F features.json
+```
+
+### Supported Formats
+
+| Format | Flag | Description |
+|--------|------|-------------|
+| Auto | `-f auto` | Auto-detect from file headers (default) |
+| PE | `-f pe` | Windows PE executable |
+| ELF | `-f elf` | Linux ELF executable |
+| .NET | `-f dotnet` | .NET assembly (requires `dotnet` feature) |
+| Shellcode 64 | `-f sc64` | Raw 64-bit x64 shellcode |
+| Shellcode 32 | `-f sc32` | Raw 32-bit x86 shellcode |
+
+## Project Structure
+
+```
+capa-rs/
+├── crates/
+│   ├── capa-core/       # Rule parsing, matching engine, output formatting
+│   ├── capa-backend/    # Binary loading, disassembly, feature extraction
+│   ├── capa-cli/        # Command-line interface
+│   └── dotscope/        # .NET PE/CIL analysis library
+├── capa-rules/          # CAPA YAML rules (1000+)
+├── enhanced-dotnet-rules/  # Additional .NET-specific rules
+├── docs/                # Rule-writing guides
+├── scripts/             # Benchmarking tools
+├── justfile             # Build automation
+└── ARCHITECTURE.md      # System design and diagrams
+```
+
+### Crate Overview
+
+| Crate | Purpose |
+|-------|---------|
+| **capa-core** | Rule YAML parser, boolean matching engine, JSON/table output |
+| **capa-backend** | PE/ELF loading (goblin), x86/x64 disassembly (iced-x86), IR lifting, feature extraction |
+| **capa-cli** | CLI argument parsing, orchestration, format detection |
+| **dotscope** | .NET metadata tables, CIL disassembly, type resolution |
+
+## Feature Flags
+
+| Feature | Build Command | Description |
+|---------|--------------|-------------|
+| default | `cargo build --release` | x86/x64 analysis via iced-x86 (pure Rust) |
+| dotnet | `cargo build --release --features dotnet` | .NET CIL analysis via dotscope (pure Rust) |
+
+## Architecture
+
+### Analysis Pipeline
+
+```
+Binary File
+    |
+    v
++------------------+     +-----------------+     +------------------+
+|  Loader (goblin) | --> |  Lifter (iced /  | --> |    Extractor     |
+|  PE/ELF parsing  |     |  capstone)       |     |  Feature harvest |
++------------------+     +-----------------+     +------------------+
+                                                         |
+    +----------------------------------------------------+
+    |
+    v
++------------------+     +-----------------+     +------------------+
+|  Rule Parser     | --> |  Match Engine   | --> |  Output (JSON /  |
+|  YAML -> AST     |     |  Boolean eval   |     |  table / verbose)|
++------------------+     +-----------------+     +------------------+
+```
+
+### Binary Loading (`capa-backend::loader`)
+
+[goblin](https://github.com/m4b/goblin) parses PE and ELF headers, extracting:
+- Import/export tables (with forwarded export resolution)
+- Section headers and attributes
+- Entry point and architecture detection
+- .NET CLR header detection (COM descriptor directory)
+- ASCII and UTF-16LE string extraction (min 4 chars)
+
+Shellcode is loaded as a single executable section at offset 0 with no headers to parse.
+
+### Disassembly & Lifting (`capa-backend::lifter`)
+
+Two disassembly backends, selected automatically by architecture:
+
+| Backend | Library | Architectures | Pure Rust |
+|---------|---------|---------------|-----------|
+| **iced-x86** (default) | [iced-x86](https://github.com/icedland/iced) | x86, x86-64 | Yes |
+| **capstone** (fallback) | [capstone-rs](https://github.com/capstone-rust/capstone-rs) | ARM, AArch64, MIPS, PPC | No (C binding) |
+
+The lifter performs recursive descent disassembly to produce an intermediate representation:
+
+- **Function discovery**: Entry point, export addresses, call target analysis, PE `.pdata` exception table (x64), and function prologue pattern matching
+- **Basic block construction**: Split at branches, calls, and jump targets with successor/predecessor edges
+- **Loop detection**: Back-edge analysis on the basic block CFG to identify loop headers
+- **Thunk resolution**: Single-`jmp` functions are identified and resolved to their IAT target
+- **IAT mapping**: Import Address Table entries are mapped for indirect call resolution (`call [rip+disp]`)
+- **String-at-address map**: Data section strings indexed by address for pointer-based string reference detection
+
+Each instruction is lifted into `ILOperation` variants (`Assign`, `Store`, `Load`, `Branch`, `Xor`, `Other`) that the feature extractor consumes.
+
+### .NET Analysis (`capa-backend::dotnet_extractor` + `dotscope`)
+
+When the `dotnet` feature is enabled, [dotscope](https://github.com/BinFlip/dotscope) provides:
+
+- **Metadata tables**: TypeDef, MethodDef, MemberRef, AssemblyRef parsing
+- **User string heap** (`#US`): Resolves `ldstr` token operands to actual string literals
+- **CIL disassembly**: Decodes IL instruction streams from method bodies (tiny + fat headers)
+- **P/Invoke imports**: Native DLL imports via `DllImport` / `ImplMap`
+- **Per-method features**: IL mnemonics, numeric constants, and string references scoped to individual methods for function-level rule matching
+
+### Feature Extraction (`capa-backend::extractor`)
+
+Features are harvested at file, function, basic block, and instruction scopes:
+
+| Feature | Scope | Source |
+|---------|-------|--------|
+| API calls | basic block | Import table + thunk resolution + IAT indirect calls |
+| Strings (ASCII/wide) | basic block | Data section string map, memory operand dereferencing |
+| Numeric constants | basic block | Immediate operands from lifted instructions |
+| Mnemonics | basic block | Instruction mnemonics (`mov`, `xor`, `call`, ...) |
+| Sections | file | PE/ELF section names |
+| Imports | file | Import table with A/W/Ex suffix normalization |
+| Exports | file | Export table (including forwarded targets) |
+| Characteristics | varies | See table below |
+| Byte patterns | instruction | Raw instruction bytes |
+| Offsets | basic block | Memory reference displacement values |
+| .NET types/methods | file + function | dotscope metadata (with `dotnet` feature) |
+
+**Characteristic detection:**
+
+| Characteristic | How Detected |
+|----------------|-------------|
+| `nzxor` | XOR with different operands (not zeroing, not XOR 0) |
+| `loop` | Back-edge in basic block CFG |
+| `tight loop` | Loop header block with <= 10 instructions |
+| `recursive call` | Function calls its own address |
+| `stack string` | 4+ `mov` to stack with printable ASCII immediates |
+| `indirect call` | `call` with no resolved target |
+| `embedded pe` | MZ header + valid PE signature found after first 512 bytes |
+| `cross section flow` | Branch target in a different PE/ELF section |
+| `peb access` | FS/GS segment register access (Windows-specific) |
+| `call $+5` | Shellcode get-EIP/RIP pattern |
+| `forwarded export` | Export entry forwards to another DLL |
+| `mixed mode` | .NET CLR header + native executable sections + exports |
+
+### Rule Parsing & Matching (`capa-core`)
+
+**Parser** (`capa-core::rule::parser`): Parses CAPA YAML rules into an AST of `FeatureNode` trees with boolean operators (`and`, `or`, `not`, `optional`), counting constraints (`count(api(...)): 2 or more`), and subscope operators (`instruction:`, `basic block:`, `function:`).
+
+**Match Engine** (`capa-core::matcher::engine`):
+- Parallel rule evaluation with [rayon](https://github.com/rayon-rs/rayon) thread pool
+- Lock-free result collection via [DashMap](https://github.com/xacrimon/dashmap)
+- Pre-compiled [Aho-Corasick](https://github.com/BurntSushi/aho-corasick) automaton for batch string matching
+- Scope-aware evaluation: file-scope rules check merged features, function/basic-block scope rules iterate per-function
+- API name normalization: `CreateFileW` -> `CreateFile`, `CreateFileExA` -> `CreateFileEx` + `CreateFile`
+
+### Supported Analysis
+
+#### Binary Formats
+
+| Format | 32-bit | 64-bit | Loader |
+|--------|--------|--------|--------|
+| PE (Windows) | Yes | Yes | goblin |
+| ELF (Linux) | Yes | Yes | goblin |
+| .NET (CIL) | Yes | Yes | goblin + dotscope |
+| Shellcode | Yes | Yes | Raw bytes (no headers) |
+
+#### Architecture Support
+
+| Architecture | Disassembler | Feature Flag | Pure Rust |
+|--------------|-------------|--------------|-----------|
+| x86 / x86-64 | iced-x86 | default | Yes |
+| .NET CIL | dotscope | `dotnet` | Yes |
+| ARM (32-bit) | capstone-rs | - | No |
+| ARM64 / AArch64 | capstone-rs | - | No |
+| MIPS | capstone-rs | - | No |
+| PowerPC 32/64 | capstone-rs | - | No |
+
+## Output Format
+
+```json
+{
+  "matched_rules": 42,
+  "total_rules": 1087,
+  "capabilities": [
+    {
+      "name": "check for debugger via API",
+      "namespace": "anti-analysis/anti-debugging",
+      "matches": 3,
+      "attack": ["T1622"]
+    }
+  ],
+  "mitre_attack": ["T1622", "T1497.001"],
+  "namespaces": {
+    "anti-analysis/anti-debugging": ["check for debugger via API"]
+  }
+}
+```
+
+## Just Commands
+
+Run `just --list` to see all available commands.
+
+| Command | Description |
+|---------|-------------|
+| `just build` | Build with default features |
+| `just build-release` | Build optimized release binary |
+| `just build-release-dotnet` | Release build with .NET support |
+| `just test` | Run all tests |
+| `just run <file>` | Analyze a binary |
+| `just run-json <file>` | Analyze with JSON output |
+| `just run-dotnet <file>` | Analyze a .NET assembly |
+| `just doc-open` | Generate and view API docs |
+| `just lint` | Run clippy linter |
+| `just fmt` | Format code |
+| `just check-all` | Format check + lint + test |
+| `just features` | Show available feature flags |
+
+## Documentation
+
+Guides for writing CAPA rules:
+
+| Guide | Description |
+|-------|-------------|
+| [PE Rules Guide](docs/pe-rules-guide.md) | Writing rules for Windows PE binaries |
+| [ELF Rules Guide](docs/elf-rules-guide.md) | Writing rules for Linux ELF binaries |
+| [.NET Rules Guide](docs/dotnet-rules-guide.md) | Writing rules for .NET assemblies |
+| [Shellcode Rules Guide](docs/shellcode-rules-guide.md) | Writing rules for raw shellcode |
+| [Architecture](ARCHITECTURE.md) | System design with Mermaid diagrams |
+
+## License
+
+Apache-2.0 - see [LICENSE](LICENSE) for details.
