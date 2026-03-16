@@ -34,7 +34,7 @@ log = "0.4"
 env_logger = "0.10"
 
 # CLI
-clap = { version = "4.4", features = ["derive"] }
+clap = { version = "4.6", features = ["derive"] }
 tabled = "0.15"
 
 # Parallelism
