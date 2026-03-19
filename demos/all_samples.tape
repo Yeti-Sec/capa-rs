@@ -7,7 +7,7 @@ Set FontSize 14
 Set Width 1200
 Set Height 700
 Set Padding 20
-Set Theme "Dracula"
+Set Theme "Catppuccin Mocha"
 Set TypingSpeed 30ms
 
 Hide

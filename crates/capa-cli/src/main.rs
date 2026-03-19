@@ -9,6 +9,7 @@ use std::fs;
 use std::path::PathBuf;
 use std::time::Instant;
 
+use colored::Colorize;
 use capa_core::feature::{ExtractedFeatures, FeatureExtractor};
 use capa_core::matcher::MatchEngine;
 use capa_core::output::{CapaOutput, SampleInfo, TimingInfo};
@@ -303,11 +304,11 @@ fn main() -> Result<()> {
     } else {
         print_text_output(&output, cli.verbose);
         // Print timing at the end (to stdout so it appears after results)
-        println!("\nTiming:");
+        println!("\n{}:", "Timing".bright_cyan().bold());
         println!("  Rules loading:  {:>8.2?}", rules_time);
         println!("  Extraction:     {:>8.2?}", extract_time);
         println!("  Matching:       {:>8.2?}", match_time);
-        println!("  Total:          {:>8.2?}", total_time);
+        println!("  {}:          {:>8.2?}", "Total".bright_white().bold(), total_time);
     }
 
     Ok(())
@@ -332,10 +333,13 @@ struct AttackRow {
 }
 
 fn print_text_output(output: &CapaOutput, verbose: bool) {
-    println!("\n{}", "=".repeat(80));
-    println!(" CAPA Analysis Results");
-    println!("{}\n", "=".repeat(80));
-    println!("Matched: {}/{} rules\n", output.matched_rules, output.total_rules);
+    let banner = "=".repeat(80);
+    println!("\n{}", banner.bright_cyan());
+    println!("{}", " CAPA Analysis Results".bright_white().bold());
+    println!("{}\n", banner.bright_cyan());
+    println!("Matched: {}/{} rules\n",
+        output.matched_rules.to_string().bright_green().bold(),
+        output.total_rules);
 
     // Build capability rows sorted by namespace then name
     let mut rows: Vec<CapabilityRow> = output.capabilities
@@ -365,7 +369,7 @@ fn print_text_output(output: &CapaOutput, verbose: bool) {
 
     // ATT&CK summary
     if !output.mitre_attack.is_empty() {
-        println!("\nMITRE ATT&CK Coverage:");
+        println!("\n{}", "MITRE ATT&CK Coverage:".bright_yellow().bold());
         let attack_rows: Vec<AttackRow> = output.mitre_attack
             .iter()
             .map(|t| AttackRow { technique: t.clone() })
@@ -377,19 +381,24 @@ fn print_text_output(output: &CapaOutput, verbose: bool) {
     }
 
     if verbose {
-        println!("\n{}", "-".repeat(80));
-        println!(" Detailed Matches");
-        println!("{}", "-".repeat(80));
+        let divider = "-".repeat(80);
+        println!("\n{}", divider.bright_cyan());
+        println!("{}", " Detailed Matches".bright_white().bold());
+        println!("{}", divider.bright_cyan());
         for cap in &output.capabilities {
             let match_suffix = if cap.matches > 1 {
-                format!(" ({} matches)", cap.matches)
+                format!(" ({} matches)", cap.matches).dimmed().to_string()
             } else {
                 String::new()
             };
-            println!("\n  {}{}", cap.name, match_suffix);
-            println!("    namespace: {}", cap.namespace.as_deref().unwrap_or("uncategorized"));
+            println!("\n  {}{}", cap.name.bright_green(), match_suffix);
+            println!("    {}: {}",
+                "namespace".bright_cyan(),
+                cap.namespace.as_deref().unwrap_or("uncategorized"));
             if let Some(ref attack) = cap.attack {
-                println!("    ATT&CK:    {}", attack.join(", "));
+                println!("    {}:    {}",
+                    "ATT&CK".bright_yellow(),
+                    attack.join(", ").bright_yellow());
             }
             if !cap.locations.is_empty() {
                 // Limit displayed addresses to 25 (like Python capa)
@@ -399,18 +408,21 @@ fn print_text_output(output: &CapaOutput, verbose: bool) {
                 // Build location strings with function names if available
                 let format_location = |idx: usize, loc: &str| -> String {
                     if let Some(name) = cap.function_names.get(idx) {
-                        format!("{} ({})", loc, name)
+                        format!("{} ({})", loc.bright_white(), name.dimmed())
                     } else {
-                        loc.to_string()
+                        loc.bright_white().to_string()
                     }
                 };
 
-                println!("    matches:   {}", format_location(0, &cap.locations[0]));
+                println!("    {}:   {}",
+                    "matches".bright_cyan(),
+                    format_location(0, &cap.locations[0]));
                 for (idx, loc) in cap.locations.iter().enumerate().skip(1).take(MAX_DISPLAY - 1) {
                     println!("               {}", format_location(idx, loc));
                 }
                 if cap.locations.len() > MAX_DISPLAY {
-                    println!("               ... and {} more", cap.locations.len() - display_count);
+                    println!("               {}",
+                        format!("... and {} more", cap.locations.len() - display_count).dimmed());
                 }
             }
         }

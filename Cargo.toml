@@ -51,6 +51,9 @@ md-5 = "0.10"
 sha1 = "0.10"
 sha2 = "0.10"
 
+# Terminal colors
+colored = "2.1"
+
 # Internal crates
 capa-core = { path = "crates/capa-core" }
 capa-backend = { path = "crates/capa-backend" }

@@ -19,6 +19,7 @@ env_logger = { workspace = true }
 log = { workspace = true }
 rayon = { workspace = true }
 tabled = { workspace = true }
+colored = { workspace = true }
 
 [features]
 default = []
