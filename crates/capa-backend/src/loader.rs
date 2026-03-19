@@ -127,7 +127,7 @@ fn load_shellcode(bytes: &[u8], arch: ArchType) -> Result<BinaryInfo, LoaderErro
 }
 
 fn load_pe(pe: &goblin::pe::PE, bytes: &[u8]) -> Result<BinaryInfo, LoaderError> {
-    let arch = if pe.is_64 {
+    let mut arch = if pe.is_64 {
         ArchType::Amd64
     } else {
         ArchType::I386
@@ -209,6 +209,20 @@ fn load_pe(pe: &goblin::pe::PE, bytes: &[u8]) -> Result<BinaryInfo, LoaderError>
         })
         .unwrap_or(false) || has_clr_import;
 
+    // .NET arch (G11): match capa's dotnetfile.extract_file_arch —
+    //   I386 only when the CLR 32BITREQUIRED flag is set (PE32),
+    //   Amd64 when PE32+ without it, else ANY (AnyCPU IL-only).
+    if is_dotnet {
+        let requires_32bit = clr_32bit_required(pe, bytes).unwrap_or(pe.is_64 == false);
+        arch = if requires_32bit && !pe.is_64 {
+            ArchType::I386
+        } else if !requires_32bit && pe.is_64 {
+            ArchType::Amd64
+        } else {
+            ArchType::Any
+        };
+    }
+
     // Mixed mode: has both .NET CLR and native executable code
     let is_mixed_mode = is_dotnet && has_native_code && !exports.is_empty();
 
@@ -228,6 +242,33 @@ fn load_pe(pe: &goblin::pe::PE, bytes: &[u8]) -> Result<BinaryInfo, LoaderError>
         is_mixed_mode,
         entry_point: pe.entry as u64,
     })
+}
+
+/// Read the CLR 2.0 header COMIMAGE_FLAGS_32BITREQUIRED (0x2) flag, if the
+/// .NET runtime header is present and readable. Returns None on any failure,
+/// letting the caller fall back to a PE-magic-based arch guess.
+fn clr_32bit_required(pe: &goblin::pe::PE, bytes: &[u8]) -> Option<bool> {
+    let oh = pe.header.optional_header?;
+    let dir = oh.data_directories.get_clr_runtime_header()?;
+    let clr_rva = dir.virtual_address as usize;
+
+    // Map the CLR header RVA to a file offset via the section table.
+    let mut file_off = None;
+    for section in &pe.sections {
+        let va = section.virtual_address as usize;
+        let span = (section.virtual_size as usize).max(section.size_of_raw_data as usize);
+        if clr_rva >= va && clr_rva < va + span {
+            file_off = Some(clr_rva - va + section.pointer_to_raw_data as usize);
+            break;
+        }
+    }
+    let off = file_off?;
+
+    // IMAGE_COR20_HEADER.Flags is at byte offset 16 (u32 LE).
+    let flag_bytes = bytes.get(off + 16..off + 20)?;
+    let flags = u32::from_le_bytes([flag_bytes[0], flag_bytes[1], flag_bytes[2], flag_bytes[3]]);
+    const COMIMAGE_FLAGS_32BITREQUIRED: u32 = 0x0000_0002;
+    Some(flags & COMIMAGE_FLAGS_32BITREQUIRED != 0)
 }
 
 fn load_elf(elf: &goblin::elf::Elf, bytes: &[u8]) -> Result<BinaryInfo, LoaderError> {
@@ -252,12 +293,10 @@ fn load_elf(elf: &goblin::elf::Elf, bytes: &[u8]) -> Result<BinaryInfo, LoaderEr
         }
     };
 
-    // Detect OS from ELF header
-    // Note: ELFOSABI_LINUX and ELFOSABI_GNU have the same value (3)
-    let os = match elf.header.e_ident[goblin::elf::header::EI_OSABI] {
-        goblin::elf::header::ELFOSABI_LINUX => OsType::Linux,
-        _ => OsType::Linux, // Default to Linux for ELF
-    };
+    // ELF is always treated as Linux regardless of OSABI field.
+    // The OSABI byte can indicate FreeBSD, Solaris, etc., but capa rules
+    // target Linux-specific behaviour, so we default uniformly.
+    let os = OsType::Linux;
 
     // Extract imports (dynamic symbols)
     let mut imports = Vec::new();

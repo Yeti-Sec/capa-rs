@@ -33,6 +33,11 @@ pub struct LiftedProgram {
     pub iat_entries: HashMap<u64, (Option<String>, String)>,
     /// Map of thunk function address -> API name it jumps to
     pub thunk_targets: HashMap<u64, String>,
+    /// Map of referencing-instruction address -> APIs, built from xrefs to import
+    /// IAT slots (IDA path only). Recovers imports invoked via register-indirect
+    /// (`mov reg,[IAT]; call reg`) or whose IAT address IDA's import enumeration
+    /// omitted — resolved by name (`__imp_<name>`) + first_xref_to.
+    pub import_apis_at: HashMap<u64, Vec<(Option<String>, String)>>,
 }
 
 /// Lifted function with IL
@@ -429,6 +434,7 @@ fn lift_shellcode(bytes: &[u8], info: &BinaryInfo) -> Result<LiftedProgram, Load
         strings_at: HashMap::new(),
         iat_entries: HashMap::new(),
         thunk_targets: HashMap::new(),
+        import_apis_at: HashMap::new(),
     })
 }
 
@@ -927,6 +933,7 @@ fn lift_with_iced(bytes: &[u8], info: &BinaryInfo) -> Result<LiftedProgram, Load
         strings_at,
         iat_entries,
         thunk_targets,
+        import_apis_at: HashMap::new(),
     })
 }
 
@@ -1319,6 +1326,7 @@ fn lift_with_capstone(bytes: &[u8], info: &BinaryInfo) -> Result<LiftedProgram, 
         strings_at,
         iat_entries,
         thunk_targets,
+        import_apis_at: HashMap::new(),
     })
 }
 

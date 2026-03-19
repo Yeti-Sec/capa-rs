@@ -72,29 +72,22 @@ pub struct Capability {
     /// ATT&CK technique IDs
     #[serde(skip_serializing_if = "Option::is_none")]
     pub attack: Option<Vec<String>>,
+    /// Raw ATT&CK strings (e.g., "Execution::Command and Scripting Interpreter [T1059]")
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub attack_raw: Vec<String>,
+    /// Raw MBC strings (e.g., "Defense Evasion::Disable or Evade Security Tools [F0004]")
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub mbc_raw: Vec<String>,
 }
 
 impl CapaOutput {
     /// Create output from match results
     pub fn from_matches(matches: Vec<RuleMatch>, total_rules: usize) -> Self {
-        // Filter out library rules, internal rules, and meta "runtime" rules
-        let visible_matches: Vec<_> = matches.iter().filter(|m| {
-            // Skip library rules
-            if m.is_lib {
-                return false;
-            }
-            // Skip internal rules (e.g., "(internal) .NET file limitation")
-            if let Some(ref ns) = m.namespace {
-                if ns.starts_with("internal/") {
-                    return false;
-                }
-                // Skip generic runtime detection rules (noisy, match every function)
-                if ns == "runtime/dotnet" && m.name == "compiled to the .NET platform" {
-                    return false;
-                }
-            }
-            true
-        }).collect();
+        // Report ALL matched rules — including library, internal, and runtime
+        // meta rules — to match the public capa release's output (its JSON /
+        // protobuf ResultDocument includes lib rules; the xMRE capa_static
+        // ground-truth counts them). Superset is intentional (see parity goal).
+        let visible_matches: Vec<_> = matches.iter().collect();
 
         // Collect all ATT&CK IDs
         let mut attack_ids: HashSet<String> = HashSet::new();
@@ -128,6 +121,8 @@ impl CapaOutput {
                 } else {
                     Some(m.attack.iter().filter_map(|s| extract_technique_id(s)).collect())
                 },
+                attack_raw: m.attack.clone(),
+                mbc_raw: m.mbc.clone(),
             })
             .collect();
 
@@ -215,7 +210,7 @@ mod tests {
     }
 
     #[test]
-    fn test_lib_rules_filtered() {
+    fn test_lib_rules_reported() {
         let matches = vec![
             RuleMatch {
                 name: "lib rule".to_string(),
@@ -239,9 +234,14 @@ mod tests {
             },
         ];
 
+        // Parity change (RC3): ALL matched rules are now reported, including lib
+        // rules, to match the public capa release's ResultDocument (its JSON/pb
+        // includes lib rules; the xMRE capa_static ground-truth counts them).
         let output = CapaOutput::from_matches(matches, 100);
-        assert_eq!(output.matched_rules, 1); // Only visible rule
-        assert_eq!(output.capabilities[0].name, "visible rule");
+        assert_eq!(output.matched_rules, 2);
+        let names: Vec<&str> = output.capabilities.iter().map(|c| c.name.as_str()).collect();
+        assert!(names.contains(&"lib rule"));
+        assert!(names.contains(&"visible rule"));
     }
 
     #[test]
@@ -257,6 +257,8 @@ mod tests {
                 locations: vec![],
                 function_names: vec![],
                 attack: Some(vec!["T1059".to_string()]),
+                attack_raw: vec!["Execution::Command and Scripting Interpreter [T1059]".to_string()],
+                mbc_raw: vec![],
             }],
             mitre_attack: vec!["T1059".to_string()],
             namespaces: HashMap::new(),

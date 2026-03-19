@@ -4,6 +4,8 @@
 
 mod extractor;
 mod types;
+pub mod com;
+pub mod freeze;
 
 pub use extractor::FeatureExtractor;
 pub use types::*;

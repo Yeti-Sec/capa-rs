@@ -109,7 +109,7 @@ fn find_rules_directory() -> Option<PathBuf> {
 #[derive(Parser)]
 #[command(name = "capa-rs")]
 #[command(author = "yeti-sec")]
-#[command(version = "0.1.0")]
+#[command(version = env!("CARGO_PKG_VERSION"))]
 #[command(about = "Detect capabilities in executable files", long_about = None)]
 struct Cli {
     /// Path to binary file to analyze
@@ -129,9 +129,17 @@ struct Cli {
     #[arg(short, long)]
     json: bool,
 
-    /// Verbose output with match details
+    /// Output JSON in the ResultDocument schema (compatible with Python capa JSON output)
+    #[arg(long)]
+    json_document: bool,
+
+    /// Verbose output with match details and addresses
     #[arg(short, long)]
     verbose: bool,
+
+    /// Very verbose output with full match trees
+    #[arg(long = "vv")]
+    vverbose: bool,
 
     /// Filter by namespace
     #[arg(short, long)]
@@ -152,6 +160,24 @@ struct Cli {
     /// Skip rule matching (use with --dump-features)
     #[arg(long)]
     extract_only: bool,
+
+    /// Analysis backend: "goblin" (default) or "ida" (requires --features ida-backend)
+    #[arg(long, default_value = "goblin")]
+    backend: String,
+
+    /// Save the IDB file after IDA analysis (only with --backend ida)
+    #[arg(long)]
+    save_idb: bool,
+
+    /// Output as protobuf wire format. Optionally provide a .proto schema file;
+    /// without one, uses the built-in schema.
+    #[arg(long, value_name = "SCHEMA")]
+    pipeline: Option<Option<PathBuf>>,
+
+    /// Message name in the proto schema to use as the top-level result
+    /// (auto-detected if not specified)
+    #[arg(long, value_name = "NAME")]
+    pipeline_message: Option<String>,
 }
 
 fn main() -> Result<()> {
@@ -161,9 +187,10 @@ fn main() -> Result<()> {
 
     // Configure thread pool if specified
     if let Some(num_threads) = cli.threads {
-        let _ = rayon::ThreadPoolBuilder::new()
+        rayon::ThreadPoolBuilder::new()
             .num_threads(num_threads)
-            .build_global();
+            .build_global()
+            .unwrap_or_else(|e| eprintln!("Warning: failed to set thread pool size: {e}"));
     }
 
     // Find rules directory
@@ -183,8 +210,24 @@ fn main() -> Result<()> {
     eprintln!("Loading rules from {}...", rules_path.display());
     let mut rules = parse_rules_directory(&rules_path)
         .context("Failed to load rules")?;
+    capa_core::rule::optimize_rules(&mut rules);
     let rules_time = rules_start.elapsed();
-    eprintln!("Loaded {} rules", rules.len());
+    eprintln!("Loaded {} rules (optimized)", rules.len());
+
+    // Warn about rules with scopes that have no backend support
+    {
+        let dynamic_count = rules.iter()
+            .filter(|r| r.meta.scopes.dynamic != capa_core::rule::DynamicScope::Unsupported)
+            .count();
+        if dynamic_count > 0 {
+            eprintln!(
+                "Warning: {} rule(s) use dynamic scopes (process/thread/call) \
+                 but no dynamic analysis backend is available — \
+                 these rules will not produce matches.",
+                dynamic_count
+            );
+        }
+    }
 
     // Filter by namespace if specified
     if let Some(ref ns) = cli.namespace {
@@ -203,14 +246,67 @@ fn main() -> Result<()> {
 
     // Get features - either from pre-extracted JSON or from binary
     let extract_start = Instant::now();
+    // binary_bytes holds the raw file bytes when we read a binary (used for both
+    // feature extraction and hash computation, avoiding a second read).
+    let mut binary_bytes: Option<Vec<u8>> = None;
     let features = if let Some(ref features_path) = cli.features {
         eprintln!("Loading pre-extracted features from {}...", features_path.display());
         let features_json = fs::read_to_string(features_path)
             .context("Failed to read features file")?;
         serde_json::from_str::<ExtractedFeatures>(&features_json)
             .context("Failed to parse features JSON")?
+    } else if cli.backend == "ida" {
+        let binary = fs::read(&cli.binary).context("Failed to read binary file")?;
+
+        // Auto-route .NET to goblin+dotscope. IdaExtractor has no managed-code
+        // (.NET/dotscope) path, so a .NET assembly would yield almost nothing
+        // under --backend ida. Divert regardless of the requested backend so
+        // every caller (DAG, service, manual) gets correct .NET results.
+        let explicit_fmt = cli.format.to_format_type();
+        let is_dotnet = explicit_fmt == Some(FormatType::DotNet)
+            || capa_backend::load_binary(&binary)
+                .map(|info| info.is_dotnet)
+                .unwrap_or(false);
+
+        if is_dotnet {
+            eprintln!(
+                ".NET binary detected — routing to goblin+dotscope backend \
+                 (IDA has no managed-code path)"
+            );
+            let extractor = BinaryExtractor::new();
+            let result = match explicit_fmt {
+                Some(format) => extractor
+                    .extract_with_format(&binary, format)
+                    .context("Failed to extract features")?,
+                None => extractor.extract(&binary).context("Failed to extract features")?,
+            };
+            binary_bytes = Some(binary);
+            result
+        } else {
+            // IDA backend (native code)
+            #[cfg(feature = "ida-backend")]
+            {
+                eprintln!("Extracting features via IDA backend for {}...", cli.binary.display());
+                let ida = capa_backend::IdaExtractor::new()
+                    .with_save_idb(cli.save_idb);
+                let result = ida
+                    .extract_file(&cli.binary)
+                    .map_err(|e| anyhow::anyhow!("Failed to extract features via IDA: {e}"))?;
+                // Retain bytes for hash computation (IdaExtractor reads the file
+                // itself, but hashing downstream needs the buffer).
+                binary_bytes = Some(binary);
+                result
+            }
+            #[cfg(not(feature = "ida-backend"))]
+            {
+                let _ = binary;
+                eprintln!("Error: IDA backend requires the 'ida-backend' feature.");
+                eprintln!("Rebuild with: cargo build --features ida-backend");
+                std::process::exit(1);
+            }
+        }
     } else {
-        // Load binary
+        // Goblin backend (default)
         eprintln!("Loading binary {}...", cli.binary.display());
         let binary = fs::read(&cli.binary)
             .context("Failed to read binary file")?;
@@ -218,7 +314,7 @@ fn main() -> Result<()> {
         // Extract features (use format if specified)
         let extractor = BinaryExtractor::new();
 
-        if let Some(format) = cli.format.to_format_type() {
+        let result = if let Some(format) = cli.format.to_format_type() {
             eprintln!("Extracting features (format: {:?})...", format);
             extractor.extract_with_format(&binary, format)
                 .context("Failed to extract features")?
@@ -226,7 +322,11 @@ fn main() -> Result<()> {
             eprintln!("Extracting features (auto-detecting format)...");
             extractor.extract(&binary)
                 .context("Failed to extract features")?
-        }
+        };
+
+        // Retain bytes for hash computation below
+        binary_bytes = Some(binary);
+        result
     };
     let extract_time = extract_start.elapsed();
 
@@ -276,22 +376,16 @@ fn main() -> Result<()> {
         total_ms: Some(total_time.as_millis() as u64),
     };
 
-    // Compute sample hashes (matching Python's Metadata.sample)
-    let sample_info = if cli.features.is_none() {
-        // We have a binary file — compute its hashes
-        let binary = fs::read(&cli.binary).ok();
-        binary.map(|bytes| {
-            let hashes = get_sample_hashes(&bytes);
-            SampleInfo {
-                md5: hashes.md5,
-                sha1: hashes.sha1,
-                sha256: hashes.sha256,
-                path: cli.binary.display().to_string(),
-            }
-        })
-    } else {
-        None
-    };
+    // Compute sample hashes once (before binary_bytes is consumed)
+    let sample_hashes = binary_bytes.as_ref().map(|bytes| get_sample_hashes(bytes));
+    let binary_path = cli.binary.display().to_string();
+
+    let sample_info = sample_hashes.as_ref().map(|hashes| SampleInfo {
+        md5: hashes.md5.clone(),
+        sha1: hashes.sha1.clone(),
+        sha256: hashes.sha256.clone(),
+        path: binary_path.clone(),
+    });
 
     let mut output = CapaOutput::from_matches(matches, engine.rule_count())
         .with_timing(timing);
@@ -299,11 +393,72 @@ fn main() -> Result<()> {
         output = output.with_sample(sample);
     }
 
-    if cli.json {
+    if let Some(ref pipeline_arg) = cli.pipeline {
+        use std::io::Write;
+        let bytes = match pipeline_arg {
+            Some(schema_path) => {
+                output.to_pipeline_with_schema(
+                    schema_path,
+                    cli.pipeline_message.as_deref(),
+                ).map_err(|e| anyhow::anyhow!("{e}"))?
+            }
+            None => output.to_pipeline(),
+        };
+        std::io::stdout().write_all(&bytes)?;
+    } else if cli.json_document {
+        use capa_core::output::result_document::{ResultDocument, Sample};
+        let sample = sample_hashes.as_ref().map(|hashes| Sample {
+            md5: hashes.md5.clone(),
+            sha1: hashes.sha1.clone(),
+            sha256: hashes.sha256.clone(),
+            path: binary_path.clone(),
+        }).unwrap_or_else(|| Sample {
+            md5: String::new(), sha1: String::new(), sha256: String::new(),
+            path: binary_path.clone(),
+        });
+
+        let func_counts: Vec<_> = features.functions.iter()
+            .map(|(addr, f)| (*addr, f.all_features().imports.len() + f.all_features().strings.len()))
+            .collect();
+        let file_count = features.file.imports.len() + features.file.strings.len();
+
+        let doc = ResultDocument::from_matches(
+            &output.capabilities.iter().map(|c| capa_core::matcher::RuleMatch {
+                name: c.name.clone(),
+                namespace: c.namespace.clone(),
+                match_count: c.matches,
+                locations: c.locations.iter().map(|l| {
+                    capa_core::feature::Address(u64::from_str_radix(l.trim_start_matches("0x"), 16).unwrap_or(0))
+                }).collect(),
+                function_names: c.function_names.clone(),
+                attack: c.attack_raw.clone(),
+                mbc: c.mbc_raw.clone(),
+                is_lib: false,
+            }).collect::<Vec<_>>(),
+            output.total_rules, sample,
+            features.os, features.arch, features.format,
+            file_count, &func_counts,
+            &[rules_path.display().to_string()],
+        );
+        println!("{}", doc.to_json().map_err(|e| anyhow::anyhow!("{e}"))?);
+    } else if cli.json {
         println!("{}", output.to_json()?);
+    } else if cli.vverbose {
+        print!("{}", capa_core::output::verbose::render_vverbose(&output));
+        println!("\n{}:", "Timing".bright_cyan().bold());
+        println!("  Rules loading:  {:>8.2?}", rules_time);
+        println!("  Extraction:     {:>8.2?}", extract_time);
+        println!("  Matching:       {:>8.2?}", match_time);
+        println!("  {}:          {:>8.2?}", "Total".bright_white().bold(), total_time);
+    } else if cli.verbose {
+        print!("{}", capa_core::output::verbose::render_verbose(&output));
+        println!("\n{}:", "Timing".bright_cyan().bold());
+        println!("  Rules loading:  {:>8.2?}", rules_time);
+        println!("  Extraction:     {:>8.2?}", extract_time);
+        println!("  Matching:       {:>8.2?}", match_time);
+        println!("  {}:          {:>8.2?}", "Total".bright_white().bold(), total_time);
     } else {
-        print_text_output(&output, cli.verbose);
-        // Print timing at the end (to stdout so it appears after results)
+        print_text_output(&output, false);
         println!("\n{}:", "Timing".bright_cyan().bold());
         println!("  Rules loading:  {:>8.2?}", rules_time);
         println!("  Extraction:     {:>8.2?}", extract_time);

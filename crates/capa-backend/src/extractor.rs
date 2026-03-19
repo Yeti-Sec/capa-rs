@@ -1,6 +1,6 @@
 //! Feature extraction from binaries
 //!
-//! Extracts CAPA features from lifted binary code using iced/vivisect.
+//! Extracts CAPA features from lifted binary code using iced-x86/capstone.
 
 use aho_corasick::AhoCorasick;
 use capa_core::error::Result;
@@ -8,6 +8,8 @@ use capa_core::feature::{Address, ExtractedFeatures, FeatureExtractor, FeatureSe
 use capa_core::rule::{ArchType, CharacteristicType, OsType};
 use log::debug;
 use memchr::memmem;
+use std::collections::HashMap;
+use std::sync::OnceLock;
 
 /// Normalize module name by stripping the `.dll`/`.DLL` extension.
 /// CAPA rules use `kernel32.VirtualAlloc` not `KERNEL32.dll.VirtualAlloc`.
@@ -59,8 +61,6 @@ fn insert_api(apis: &mut std::collections::HashSet<String>, module: &Option<Stri
         }
     }
 }
-use std::collections::HashMap;
-
 use crate::lifter::{lift_binary, ILOperation, LiftedBasicBlock, LiftedFunction, LiftedProgram};
 use crate::loader::{load_binary, BinaryInfo};
 use crate::dotnet_extractor::{extract_dotnet_features, merge_dotnet_features, merge_dotnet_method_features};
@@ -165,9 +165,9 @@ impl FeatureExtractor for GoblinExtractor {
             if let Some(dotnet_features) = extract_dotnet_features(binary) {
                 merge_dotnet_features(&dotnet_features, &mut features.file);
                 debug!(
-                    ".NET extraction complete: {} user strings, {} types, {} API calls",
+                    ".NET extraction complete: {} user strings, {} classes, {} API calls",
                     dotnet_features.user_strings.len(),
-                    dotnet_features.types.len(),
+                    dotnet_features.classes.len(),
                     dotnet_features.api_calls.len()
                 );
             }
@@ -196,7 +196,7 @@ impl BinaryExtractor {
     }
 
     /// Extract features from a lifted program
-    fn extract_from_lifted(&self, program: &LiftedProgram, bytes: &[u8]) -> ExtractedFeatures {
+    pub(crate) fn extract_from_lifted(&self, program: &LiftedProgram, bytes: &[u8]) -> ExtractedFeatures {
         let info = &program.info;
         let mut features = ExtractedFeatures::new(info.os, info.arch, info.format);
 
@@ -262,14 +262,14 @@ impl BinaryExtractor {
                 func_features.features.characteristics.insert(CharacteristicType::RecursiveCall);
             }
 
-            // Check for stack string construction
-            if self.detect_stack_strings(func) {
-                func_features.features.characteristics.insert(CharacteristicType::StackString);
-            }
-
             // Extract basic block features
             for bb in &func.basic_blocks {
-                let bb_features = self.extract_basic_block_features(bb, info, program);
+                let mut bb_features = self.extract_basic_block_features(bb, info, program);
+
+                // Detect stack string construction at BB scope
+                if self.detect_stack_strings_in_bb(bb) {
+                    bb_features.characteristics.insert(CharacteristicType::StackString);
+                }
 
                 // Debug: Check for blocks with both TightLoop and Nzxor
                 if bb_features.characteristics.contains(&CharacteristicType::TightLoop)
@@ -289,7 +289,7 @@ impl BinaryExtractor {
             // Extract instruction features
             for bb in &func.basic_blocks {
                 for insn in &bb.instructions {
-                    let insn_features = self.extract_instruction_features(insn, info);
+                    let insn_features = self.extract_instruction_features(insn, info, program);
                     func_features.instructions.insert(Address(insn.address), insn_features.clone());
                 }
             }
@@ -419,23 +419,26 @@ impl BinaryExtractor {
         }
 
         // Check for FS/GS segment access (anti-debug, PEB access on Windows)
-        // On Windows x86: FS points to TEB, FS:[0x30] is PEB
-        // On Windows x64: GS points to TEB, GS:[0x60] is PEB
+        // On Windows x86: FS points to TEB, FS:[0x30] is PEB pointer
+        // On Windows x64: GS points to TEB, GS:[0x60] is PEB pointer
         // On Linux: FS/GS are used for TLS, not PEB (no PEB exists)
         for insn in &bb.instructions {
-            let op_str = insn.operands.join(", ").to_lowercase();
-            if op_str.contains("fs:") {
-                features.characteristics.insert(CharacteristicType::FsAccess);
-                // Only mark as PEB access on Windows
-                if info.os == OsType::Windows {
-                    features.characteristics.insert(CharacteristicType::Peb);
+            for op in &insn.operands {
+                let op_lower = op.to_lowercase();
+                if op_lower.contains("fs:") {
+                    features.characteristics.insert(CharacteristicType::FsAccess);
+                    // PEB access requires specific TEB offset on Windows
+                    if info.os == OsType::Windows && self.operand_has_offset(&op_lower, 0x30) {
+                        features.characteristics.insert(CharacteristicType::Peb);
+                    }
                 }
-            }
-            if op_str.contains("gs:") {
-                features.characteristics.insert(CharacteristicType::GsAccess);
-                // On Windows x64, GS access could be TEB/PEB access
-                if info.os == OsType::Windows && info.arch == ArchType::Amd64 {
-                    features.characteristics.insert(CharacteristicType::Peb);
+                if op_lower.contains("gs:") {
+                    features.characteristics.insert(CharacteristicType::GsAccess);
+                    if info.os == OsType::Windows && info.arch == ArchType::Amd64
+                        && self.operand_has_offset(&op_lower, 0x60)
+                    {
+                        features.characteristics.insert(CharacteristicType::Peb);
+                    }
                 }
             }
         }
@@ -470,18 +473,92 @@ impl BinaryExtractor {
         features
     }
 
+    /// Resolve an instruction's call target to an API name (direct import,
+    /// thunk, or IAT-indirect) and insert it into `apis`. Same resolution the
+    /// basic-block path uses; called from instruction scope so instruction-scope
+    /// `api:` rules can match (Fix A).
+    fn resolve_instruction_apis(
+        &self,
+        insn: &crate::lifter::LiftedInstruction,
+        info: &BinaryInfo,
+        program: &LiftedProgram,
+        apis: &mut std::collections::HashSet<String>,
+    ) {
+        // Direct call to an import or thunk (call instructions only).
+        if insn.mnemonic == "call" {
+            for op in &insn.operations {
+                if let ILOperation::Branch { target: Some(target), is_call: true } = op {
+                    if let Some(import) = info.imports.iter().find(|i| i.address == *target) {
+                        insert_api(apis, &import.module, &import.name);
+                    } else if let Some(api_name) = program.thunk_targets.get(target) {
+                        if let Some(dot_pos) = api_name.rfind('.') {
+                            let module = Some(api_name[..dot_pos].to_string());
+                            insert_api(apis, &module, &api_name[dot_pos + 1..]);
+                        } else {
+                            insert_api(apis, &None, api_name);
+                        }
+                    }
+                }
+            }
+        }
+        // ANY instruction that references an IAT slot through a memory operand —
+        // not just `call [IAT]`, but also `mov reg,[IAT]` / `push [IAT]` /
+        // `lea reg,[IAT]` (the register-indirect call setup `mov reg,[IAT];
+        // call reg`). Resolving the api at the referencing instruction mirrors
+        // capa's xref-to-import behavior and recovers imports invoked this way
+        // (e.g. CreateFile, TlsGetValue) that a call-target-only scan misses.
+        for operand in &insn.operands {
+            if operand.contains('[') && operand.contains("0x") {
+                if let Some(addr) = self.parse_memory_address(operand, insn.address, insn.bytes.len()) {
+                    if let Some((module, name)) = program.iat_entries.get(&addr) {
+                        insert_api(apis, module, name);
+                    } else if let Some(import) = info.imports.iter().find(|i| i.address == addr) {
+                        insert_api(apis, &import.module, &import.name);
+                    }
+                }
+            }
+        }
+        // Xref-driven import APIs stamped at this instruction (IDA path): recovers
+        // imports whose IAT address was missing from enumeration or that are
+        // called register-indirect. Empty for the goblin path.
+        if let Some(apis_here) = program.import_apis_at.get(&insn.address) {
+            for (module, name) in apis_here {
+                insert_api(apis, module, name);
+            }
+        }
+    }
+
     /// Extract features from a single instruction
-    fn extract_instruction_features(&self, insn: &crate::lifter::LiftedInstruction, _info: &BinaryInfo) -> FeatureSet {
+    fn extract_instruction_features(&self, insn: &crate::lifter::LiftedInstruction, info: &BinaryInfo, program: &LiftedProgram) -> FeatureSet {
         let mut features = FeatureSet::new();
 
         // Mnemonic
         *features.mnemonics.entry(insn.mnemonic.clone()).or_insert(0) += 1;
 
-        // Operand values
+        // API resolution at INSTRUCTION scope (Fix A): instruction-scope `api:`
+        // rules (create/open file, DeviceIoControl, GetProcAddress, ...) match
+        // the instruction's own FeatureSet, which previously carried zero apis.
+        self.resolve_instruction_apis(insn, info, program, &mut features.apis);
+
+        // Operand values and offsets
         for (idx, val) in insn.operand_values.iter().enumerate() {
-            if let Some(v) = val {
-                features.numbers.insert(*v);
-                features.operands.push((idx, Some(*v), None));
+            let num = val.as_ref().copied();
+            if let Some(v) = num {
+                features.numbers.insert(v);
+            }
+
+            // Extract offset from this operand's memory reference
+            let offset = if idx < insn.operands.len() {
+                self.extract_operand_offset(&insn.operands[idx])
+            } else {
+                None
+            };
+            if let Some(off) = offset {
+                features.offsets.insert(off);
+            }
+
+            if num.is_some() || offset.is_some() {
+                features.operands.push((idx, num, offset));
             }
         }
 
@@ -541,15 +618,16 @@ impl BinaryExtractor {
         }
 
         // Look for CLSID patterns in strings (GUID format: {XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX})
-        let guid_re = regex::Regex::new(
-            r"\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\}"
-        ).ok();
+        static GUID_RE: OnceLock<regex::Regex> = OnceLock::new();
+        let guid_re = GUID_RE.get_or_init(|| {
+            regex::Regex::new(
+                r"\{[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}\}"
+            ).expect("GUID regex is valid")
+        });
 
-        if let Some(re) = guid_re {
-            for si in &info.strings {
-                if re.is_match(&si.value) {
-                    features.classes.insert(si.value.clone());
-                }
+        for si in &info.strings {
+            if guid_re.is_match(&si.value) {
+                features.classes.insert(si.value.clone());
             }
         }
     }
@@ -594,39 +672,71 @@ impl BinaryExtractor {
         false
     }
 
-    /// Detect stack string construction patterns
-    fn detect_stack_strings(&self, func: &LiftedFunction) -> bool {
-        // Look for patterns like: mov [esp+X], imm32 repeated multiple times
-        // This is a common pattern for building strings on the stack
+    /// Detect stack string construction patterns within a single basic block.
+    fn detect_stack_strings_in_bb(&self, bb: &LiftedBasicBlock) -> bool {
         let mut stack_moves = 0;
 
-        for bb in &func.basic_blocks {
-            for insn in &bb.instructions {
-                // Check for mov to stack with immediate value
-                if insn.mnemonic == "mov" && insn.operands.len() >= 2 {
-                    let dst = insn.operands[0].to_lowercase();
+        for insn in &bb.instructions {
+            if insn.mnemonic == "mov" && insn.operands.len() >= 2 {
+                let dst = insn.operands[0].to_lowercase();
 
-                    // Check if destination is stack-relative
-                    let is_stack_dst = dst.contains("esp")
-                        || dst.contains("ebp")
-                        || dst.contains("rsp")
-                        || dst.contains("rbp");
+                let is_stack_dst = dst.contains("esp")
+                    || dst.contains("ebp")
+                    || dst.contains("rsp")
+                    || dst.contains("rbp");
 
-                    // Check if source is a small immediate (likely character)
-                    let is_char_imm = insn.operand_values.get(1).and_then(|v| *v).map_or(false, |v| {
-                        (v >= 0x20 && v <= 0x7E) || // Printable ASCII
-                        (v >= 0x20202020 && v <= 0x7E7E7E7E) // 4 chars packed
-                    });
+                let is_char_imm = insn.operand_values.get(1).and_then(|v| *v).map_or(false, |v| {
+                    is_printable_immediate(v)
+                });
 
-                    if is_stack_dst && is_char_imm {
-                        stack_moves += 1;
-                    }
+                if is_stack_dst && is_char_imm {
+                    stack_moves += 1;
                 }
             }
         }
 
-        // If we see 4+ stack moves with character immediates, likely stack string
         stack_moves >= 4
+    }
+
+    /// Check if an operand string contains a specific offset value.
+    /// e.g., "fs:[0x30]" has offset 0x30, "[ebp+0x30]" has offset 0x30.
+    fn operand_has_offset(&self, op: &str, target: i64) -> bool {
+        if let Some(offset) = self.extract_operand_offset(op) {
+            offset == target
+        } else {
+            false
+        }
+    }
+
+    /// Extract the offset/displacement value from a single operand string.
+    fn extract_operand_offset(&self, op: &str) -> Option<i64> {
+        let op_lower = op.to_lowercase();
+        let bracket_start = op_lower.find('[')?;
+        let bracket_end = op_lower.find(']')?;
+        let inside = &op_lower[bracket_start + 1..bracket_end];
+
+        if let Some(plus_pos) = inside.find('+') {
+            parse_number(inside[plus_pos + 1..].trim())
+        } else if let Some(minus_pos) = inside.find('-') {
+            parse_number(inside[minus_pos + 1..].trim()).map(|v| -v)
+        } else {
+            // Bare address like [0x30]
+            let trimmed = inside.trim();
+            if trimmed.starts_with("0x") || trimmed.chars().next().map_or(false, |c| c.is_ascii_digit()) {
+                parse_number(trimmed)
+            } else if !trimmed.is_empty()
+                && !trimmed.contains('*')
+                && trimmed.chars().next().map_or(false, |c| c.is_ascii_alphabetic())
+            {
+                // Register-indirect memory operand like [eax] / [rdi] (and
+                // zero-displacement forms IDA renders as [reg]) — displacement 0.
+                // Matches capa's operand-offset semantics and makes
+                // `operand[N].offset: 0` satisfiable (Fix C, e.g. PlugX module rule).
+                Some(0)
+            } else {
+                None
+            }
+        }
     }
 
     /// Detect call to next instruction (shellcode pattern)
@@ -671,32 +781,47 @@ impl BinaryExtractor {
         finder.find_iter(bytes).map(|pos| pos as u64).collect()
     }
 
-    /// Extract offset values from operands (memory references)
+    /// Extract offset values from operands (memory references).
+    ///
+    /// Handles patterns:
+    /// - `[reg+0x10]` → offset 0x10
+    /// - `[reg-0x8]`  → offset -0x8
+    /// - `[0x401000]` → offset 0x401000  (bare address)
+    /// - `fs:[0x30]`  → offset 0x30      (segment-prefixed)
     fn extract_offsets(&self, insn: &crate::lifter::LiftedInstruction) -> Vec<i64> {
         let mut offsets = Vec::new();
 
         for op in &insn.operands {
             let op_lower = op.to_lowercase();
 
-            // Look for memory offset patterns like [reg+offset] or [offset]
-            if op_lower.contains('[') {
-                // Extract numbers from memory references
-                if let Some(start) = op_lower.find('+') {
-                    let after_plus = &op_lower[start + 1..];
-                    if let Some(end) = after_plus.find(']') {
-                        let offset_str = after_plus[..end].trim();
-                        if let Some(offset) = parse_number(offset_str) {
-                            offsets.push(offset);
-                        }
-                    }
-                } else if let Some(start) = op_lower.find('-') {
-                    let after_minus = &op_lower[start + 1..];
-                    if let Some(end) = after_minus.find(']') {
-                        let offset_str = after_minus[..end].trim();
-                        if let Some(offset) = parse_number(offset_str) {
-                            offsets.push(-offset);
-                        }
-                    }
+            // Find the bracketed portion, stripping any segment prefix (fs:, gs:)
+            let bracket_start = match op_lower.find('[') {
+                Some(pos) => pos,
+                None => continue,
+            };
+            let bracket_end = match op_lower.find(']') {
+                Some(pos) => pos,
+                None => continue,
+            };
+            let inside = &op_lower[bracket_start + 1..bracket_end];
+
+            if let Some(plus_pos) = inside.find('+') {
+                // [reg+offset]
+                let offset_str = inside[plus_pos + 1..].trim();
+                if let Some(offset) = parse_number(offset_str) {
+                    offsets.push(offset);
+                }
+            } else if let Some(minus_pos) = inside.find('-') {
+                // [reg-offset]
+                let offset_str = inside[minus_pos + 1..].trim();
+                if let Some(offset) = parse_number(offset_str) {
+                    offsets.push(-offset);
+                }
+            } else {
+                // [0x401000] or bare address — extract number directly
+                let trimmed = inside.trim();
+                if let Some(offset) = parse_number(trimmed) {
+                    offsets.push(offset);
                 }
             }
         }
@@ -779,6 +904,35 @@ impl BinaryExtractor {
     }
 }
 
+/// Check if an immediate value represents printable ASCII character(s).
+///
+/// Handles both single-byte values (0x20..0x7E) and packed multi-byte values
+/// where each non-zero byte is printable ASCII (e.g., 0x726f4d20 = "Mor ").
+fn is_printable_immediate(v: i64) -> bool {
+    // Single ASCII char
+    if v >= 0x20 && v <= 0x7E {
+        return true;
+    }
+    // Packed multi-byte: positive values above 0x7E may encode multiple printable chars
+    // (e.g., stack strings built with `mov dword [esp], 0x726f4d20`).
+    // Each non-zero byte must be a printable ASCII character (0x20..0x7E).
+    if v > 0x7E {
+        let bytes = (v as u64).to_le_bytes();
+        let mut has_printable = false;
+        for &b in &bytes {
+            if b == 0 {
+                continue; // null padding is OK
+            }
+            if b < 0x20 || b > 0x7E {
+                return false; // non-printable byte
+            }
+            has_printable = true;
+        }
+        return has_printable;
+    }
+    false
+}
+
 /// Parse a number from string (hex or decimal)
 fn parse_number(s: &str) -> Option<i64> {
     let s = s.trim();
@@ -847,9 +1001,9 @@ impl FeatureExtractor for BinaryExtractor {
                 merge_dotnet_method_features(&dotnet_features, &mut features.functions);
 
                 debug!(
-                    ".NET extraction complete: {} user strings, {} types, {} API calls, {} methods",
+                    ".NET extraction complete: {} user strings, {} classes, {} API calls, {} methods",
                     dotnet_features.user_strings.len(),
-                    dotnet_features.types.len(),
+                    dotnet_features.classes.len(),
                     dotnet_features.api_calls.len(),
                     dotnet_features.method_features.len()
                 );

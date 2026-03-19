@@ -2,6 +2,9 @@
 /target/
 **/target/
 
+# Rust incremental / backup
+**/*.rs.bk
+
 # IDE
 .idea/
 .vscode/
@@ -14,14 +17,38 @@
 Thumbs.db
 desktop.ini
 
-# Local data (not for distribution)
+# Environment / secrets
+.env
+.env.*
+
+# Local analysis data (not for distribution)
 features.json
 benchmark/
 samples/
 
-# Rust
-**/*.rs.bk
+# Internal docs (not for public release)
+ARCHITECTURE.md
+CHANGELOG.md
 
-# Environment
-.env
-.env.*
+# IDA Pro databases
+*.idb
+*.i64
+*.id0
+*.id1
+*.id2
+*.nam
+*.til
+
+# Knowledge graph / graphify artifacts
+.graphify/
+**/graphify/
+graphify-out/
+
+# Proto generated files
+**/proto/generated/
+
+# VHS tape recordings (local demo tooling)
+*.tape
+
+# Package / release scripts (local tooling)
+package-for-github.sh

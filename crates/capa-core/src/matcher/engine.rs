@@ -3,7 +3,6 @@
 //! Evaluates rules against extracted features with parallel processing
 //! and optimized string matching.
 
-use aho_corasick::AhoCorasick;
 use dashmap::DashMap;
 use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
@@ -36,111 +35,11 @@ pub struct RuleMatch {
     pub is_lib: bool,
 }
 
-/// Pre-compiled string patterns for fast matching
-/// Currently built but reserved for future batch-matching optimization
-#[derive(Debug)]
-#[allow(dead_code)]
-pub struct StringIndex {
-    /// Exact string patterns mapped to pattern IDs
-    exact_patterns: Vec<String>,
-    /// Aho-Corasick automaton for exact matching
-    exact_automaton: Option<AhoCorasick>,
-    /// Map from pattern to indices in the automaton
-    pattern_to_rules: HashMap<String, Vec<usize>>,
-}
-
-#[allow(dead_code)]
-impl StringIndex {
-    /// Build a string index from rules
-    pub fn from_rules(rules: &[Rule]) -> Self {
-        let mut patterns = Vec::new();
-        let mut pattern_to_rules: HashMap<String, Vec<usize>> = HashMap::new();
-
-        for (rule_idx, rule) in rules.iter().enumerate() {
-            Self::collect_patterns(&rule.features, rule_idx, &mut patterns, &mut pattern_to_rules);
-        }
-
-        // Deduplicate patterns
-        let unique_patterns: Vec<String> = patterns.into_iter().collect::<HashSet<_>>().into_iter().collect();
-
-        let automaton = if !unique_patterns.is_empty() {
-            AhoCorasick::new(&unique_patterns).ok()
-        } else {
-            None
-        };
-
-        Self {
-            exact_patterns: unique_patterns,
-            exact_automaton: automaton,
-            pattern_to_rules,
-        }
-    }
-
-    fn collect_patterns(
-        node: &FeatureNode,
-        rule_idx: usize,
-        patterns: &mut Vec<String>,
-        pattern_to_rules: &mut HashMap<String, Vec<usize>>,
-    ) {
-        match node {
-            FeatureNode::And(children) | FeatureNode::Or(children) | FeatureNode::NOrMore(_, children) | FeatureNode::Optional(children) | FeatureNode::Instruction(children) | FeatureNode::BasicBlock(children) | FeatureNode::Function(children) => {
-                for child in children {
-                    Self::collect_patterns(child, rule_idx, patterns, pattern_to_rules);
-                }
-            }
-            FeatureNode::Not(child) | FeatureNode::Count(child, _) | FeatureNode::Description(_, child) => {
-                Self::collect_patterns(child, rule_idx, patterns, pattern_to_rules);
-            }
-            FeatureNode::Feature(feature) => {
-                if let Some(pattern) = Self::extract_exact_pattern(feature) {
-                    patterns.push(pattern.clone());
-                    pattern_to_rules.entry(pattern).or_default().push(rule_idx);
-                }
-            }
-            FeatureNode::Match(_) => {}
-        }
-    }
-
-    fn extract_exact_pattern(feature: &Feature) -> Option<String> {
-        match feature {
-            Feature::Api(StringMatcher::Exact(s))
-            | Feature::Import(StringMatcher::Exact(s))
-            | Feature::Export(StringMatcher::Exact(s))
-            | Feature::String(StringMatcher::Exact(s))
-            | Feature::FunctionName(StringMatcher::Exact(s))
-            | Feature::Section(StringMatcher::Exact(s)) => Some(s.clone()),
-            _ => None,
-        }
-    }
-
-    /// Check if any pattern matches in the given strings
-    pub fn find_matches(&self, strings: &HashSet<String>) -> HashSet<String> {
-        let mut found = HashSet::new();
-
-        if let Some(ref automaton) = self.exact_automaton {
-            for s in strings {
-                for mat in automaton.find_iter(s) {
-                    if let Some(pattern) = self.exact_patterns.get(mat.pattern().as_usize()) {
-                        // Only count exact matches
-                        if s == pattern {
-                            found.insert(pattern.clone());
-                        }
-                    }
-                }
-            }
-        }
-
-        found
-    }
-}
 
 /// Rule matching engine with parallel processing
 pub struct MatchEngine {
     rules: Vec<Rule>,
     rule_index: HashMap<String, usize>,
-    /// Pre-built string index for future batch optimization
-    #[allow(dead_code)]
-    string_index: StringIndex,
 }
 
 impl MatchEngine {
@@ -151,12 +50,9 @@ impl MatchEngine {
             rule_index.insert(rule.meta.name.clone(), i);
         }
 
-        let string_index = StringIndex::from_rules(&rules);
-
         Self {
             rules,
             rule_index,
-            string_index,
         }
     }
 
@@ -339,7 +235,13 @@ impl MatchEngine {
             FeatureNode::Optional(_) => true,
 
             FeatureNode::Count(child, constraint) => {
-                let count = self.count_feature(child, scope_features);
+                // count(match(rule)) needs cross-rule context that count_feature
+                // lacks — resolve it here (Fix B). Otherwise fall back to plain
+                // feature counting within the current scope.
+                let count = match Self::unwrap_match(child) {
+                    Some(rule_name) => self.count_rule_matches(rule_name, all_features, cache),
+                    None => self.count_feature(child, scope_features),
+                };
                 match constraint {
                     CountConstraint::Exact(n) => count == *n,
                     CountConstraint::OrMore(n) => count >= *n,
@@ -363,7 +265,18 @@ impl MatchEngine {
                     let rule = &self.rules[*idx];
                     self.match_rule(rule, all_features, cache).is_some()
                 } else {
-                    false
+                    // `match:` can reference a NAMESPACE (capa semantics): matches
+                    // if ANY rule in that namespace (or a sub-namespace) matches.
+                    let prefix = format!("{}/", rule_name);
+                    let matched = self.rules.iter().any(|r| {
+                        r.meta
+                            .namespace
+                            .as_ref()
+                            .map_or(false, |ns| ns == rule_name || ns.starts_with(&prefix))
+                            && self.match_rule(r, all_features, cache).is_some()
+                    });
+                    cache.insert(rule_name.clone(), matched);
+                    matched
                 }
             }
 
@@ -446,6 +359,45 @@ impl MatchEngine {
         }
     }
 
+    /// Unwrap a `match:` node (possibly Description-wrapped) to its target name.
+    fn unwrap_match(node: &FeatureNode) -> Option<&str> {
+        match node {
+            FeatureNode::Match(name) => Some(name.as_str()),
+            FeatureNode::Description(_, inner) => Self::unwrap_match(inner),
+            _ => None,
+        }
+    }
+
+    /// Count the locations at which a referenced rule (by name, or any rule in a
+    /// namespace) matched. Backs `count(match(rule)): N or more` (Fix B), which
+    /// previously always evaluated to 0. Program-global count (a superset of
+    /// capa's per-scope count, acceptable for "find at least everything").
+    fn count_rule_matches(
+        &self,
+        rule_name: &str,
+        all_features: &ExtractedFeatures,
+        cache: &Arc<DashMap<String, bool>>,
+    ) -> usize {
+        if let Some(idx) = self.rule_index.get(rule_name) {
+            return self
+                .match_rule(&self.rules[*idx], all_features, cache)
+                .map(|m| m.locations.len())
+                .unwrap_or(0);
+        }
+        let prefix = format!("{}/", rule_name);
+        self.rules
+            .iter()
+            .filter(|r| {
+                r.meta
+                    .namespace
+                    .as_ref()
+                    .map_or(false, |ns| ns == rule_name || ns.starts_with(&prefix))
+            })
+            .filter_map(|r| self.match_rule(r, all_features, cache))
+            .map(|m| m.locations.len())
+            .sum()
+    }
+
     fn match_feature(
         &self,
         feature: &Feature,
@@ -468,7 +420,14 @@ impl MatchEngine {
             Feature::Offset(offset_matcher) => scope_features.offsets.contains(&offset_matcher.value),
 
             Feature::Bytes(pattern) => {
-                scope_features.bytes_sequences.iter().any(|seq| seq == pattern)
+                scope_features.bytes_sequences.iter().any(|seq| {
+                    if seq.len() != pattern.len() {
+                        return false;
+                    }
+                    seq.iter().zip(pattern.iter()).all(|(actual, expected)| {
+                        expected.map_or(true, |b| *actual == b)
+                    })
+                })
             }
 
             Feature::Mnemonic(mnem) => scope_features.mnemonics.contains_key(mnem),

@@ -1,6 +1,6 @@
-# capa-rs demo — ELF binary analysis
+# capa-rs demo — Rust PE analysis
 
-Output demos/elf.gif
+Output demos/rust_cargobay.gif
 
 Set Shell "powershell"
 Set FontSize 14
@@ -23,16 +23,16 @@ Enter
 Sleep 500ms
 Show
 
-Type "# ELF binary analysis — Mirai"
+Type "# Rust PE analysis — CargoBay"
 Enter
 Sleep 0.5s
-Type "capa-rs elf_mirai"
+Type "capa-rs rust_cargobay"
 Enter
 Sleep 8s
 
 Type "# Verbose output"
 Enter
 Sleep 0.5s
-Type "capa-rs -v elf_mirai"
+Type "capa-rs -v rust_cargobay"
 Enter
 Sleep 8s

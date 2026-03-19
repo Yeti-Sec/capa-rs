@@ -1,6 +1,6 @@
-# capa-rs demo — ELF binary analysis
+# capa-rs demo — Conti ransomware analysis
 
-Output demos/elf.gif
+Output demos/floss_conti.gif
 
 Set Shell "powershell"
 Set FontSize 14
@@ -23,16 +23,16 @@ Enter
 Sleep 500ms
 Show
 
-Type "# ELF binary analysis — Mirai"
+Type "# Conti ransomware analysis"
 Enter
 Sleep 0.5s
-Type "capa-rs elf_mirai"
+Type "capa-rs floss_conti"
 Enter
 Sleep 8s
 
 Type "# Verbose output"
 Enter
 Sleep 0.5s
-Type "capa-rs -v elf_mirai"
+Type "capa-rs -v floss_conti"
 Enter
 Sleep 8s

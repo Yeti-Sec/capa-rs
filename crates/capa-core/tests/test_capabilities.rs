@@ -165,6 +165,70 @@ rule:
     assert!(!engine.match_all_sequential(&features).is_empty());
 }
 
+// Fix B: count(match(rule)) must count the referenced rule's match locations.
+// Previously hardwired to 0 (no FeatureNode::Match arm in count_feature).
+#[test]
+fn test_count_of_match() {
+    let sub = r#"
+rule:
+    meta:
+        name: link function at runtime
+        scopes:
+            static: instruction
+    features:
+        - api: GetProcAddress
+"#;
+    let outer = r#"
+rule:
+    meta:
+        name: link many functions at runtime
+        scopes:
+            static: function
+    features:
+        - count(match(link function at runtime)): 3 or more
+"#;
+    let engine = MatchEngine::new(vec![parse_rule(sub).unwrap(), parse_rule(outer).unwrap()]);
+
+    // One function with 3 instructions that each match the sub-rule.
+    let mut features = ExtractedFeatures::new(OsType::Windows, ArchType::I386, FormatType::Pe);
+    let mut func = FunctionFeatures::new(ADDR1);
+    for i in 0..3u64 {
+        let mut insn = FeatureSet::new();
+        insn.apis.insert("GetProcAddress".to_string());
+        func.instructions.insert(Address(0x401000 + i * 0x10), insn);
+    }
+    features.functions.insert(ADDR1, func);
+
+    let names: Vec<String> = engine
+        .match_all_sequential(&features)
+        .into_iter()
+        .map(|m| m.name)
+        .collect();
+    assert!(
+        names.iter().any(|n| n == "link many functions at runtime"),
+        "count(match()) with 3 sub-matches should satisfy '3 or more'; got {names:?}"
+    );
+
+    // Only 2 sub-matches -> the count(match()) rule must NOT fire.
+    let mut features2 = ExtractedFeatures::new(OsType::Windows, ArchType::I386, FormatType::Pe);
+    let mut func2 = FunctionFeatures::new(ADDR1);
+    for i in 0..2u64 {
+        let mut insn = FeatureSet::new();
+        insn.apis.insert("GetProcAddress".to_string());
+        func2.instructions.insert(Address(0x401000 + i * 0x10), insn);
+    }
+    features2.functions.insert(ADDR1, func2);
+    let names2: Vec<String> = engine
+        .match_all_sequential(&features2)
+        .into_iter()
+        .map(|m| m.name)
+        .collect();
+    assert!(
+        !names2.iter().any(|n| n == "link many functions at runtime"),
+        "count(match()) with 2 sub-matches must not satisfy '3 or more'; got {names2:?}"
+    );
+}
+
 // ---------- test_instruction_subscope ----------
 
 #[test]
@@ -318,9 +382,11 @@ rule:
     assert!(!matches.is_empty(), "lib rule should still match");
     assert!(matches[0].is_lib);
 
+    // Parity change (RC3): lib rules are now reported in output, matching the
+    // public capa release's ResultDocument (its JSON/pb includes lib rules).
     let output = CapaOutput::from_matches(matches, 1);
-    assert_eq!(output.matched_rules, 0, "lib rules filtered from output");
-    assert!(output.capabilities.is_empty());
+    assert_eq!(output.matched_rules, 1, "lib rules are now reported for parity");
+    assert_eq!(output.capabilities[0].name, "lib helper");
 }
 
 // ---------- test_no_match ----------

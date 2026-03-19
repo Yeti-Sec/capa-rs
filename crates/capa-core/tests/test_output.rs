@@ -46,7 +46,7 @@ fn test_output_from_single_match() {
 // ---------- test_lib_rules_filtered ----------
 
 #[test]
-fn test_lib_rules_not_in_capabilities() {
+fn test_lib_rules_reported_in_capabilities() {
     let matches = vec![
         RuleMatch {
             name: "lib rule".to_string(),
@@ -70,10 +70,13 @@ fn test_lib_rules_not_in_capabilities() {
         },
     ];
 
+    // Parity change (RC3): ALL matched rules (incl. lib) are reported, matching
+    // the public capa release's ResultDocument.
     let output = CapaOutput::from_matches(matches, 100);
-    assert_eq!(output.matched_rules, 1);
-    assert_eq!(output.capabilities.len(), 1);
-    assert_eq!(output.capabilities[0].name, "visible rule");
+    assert_eq!(output.matched_rules, 2);
+    let names: Vec<&str> = output.capabilities.iter().map(|c| c.name.as_str()).collect();
+    assert!(names.contains(&"lib rule"));
+    assert!(names.contains(&"visible rule"));
 }
 
 // ---------- test_json_round_trip (port of test_result_document.py::assert_round_trip concept) ----------

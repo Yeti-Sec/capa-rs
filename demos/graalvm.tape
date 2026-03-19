@@ -3,19 +3,19 @@
 Output demos/graalvm.gif
 
 Set Shell "powershell"
-Set FontSize 15
+Set FontSize 14
 Set Width 1200
 Set Height 700
 Set Padding 20
 Set Theme "Catppuccin Mocha"
-Set TypingSpeed 40ms
+Set TypingSpeed 30ms
 
 Hide
-Type "$env:PATH = 'C:\Users\yeti-sec\Desktop\capa-rs-release\target\release;' + $env:PATH"
+Type "$env:PATH = 'C:\Users\yeti-sec\Desktop\capa-rs-release\capa-rs-release\target\release;' + $env:PATH"
 Enter
-Type "$env:CAPA_RULES = 'C:\Users\yeti-sec\Desktop\capa-rs-release\capa-rules'"
+Type "$env:CAPA_RULES = 'C:\Users\yeti-sec\Desktop\capa-rules'"
 Enter
-Type "cd C:\Users\yeti-sec\Desktop\capa-rs-release"
+Type "cd C:\Users\yeti-sec\Desktop\test_samples"
 Enter
 Sleep 1s
 Type "cls"
@@ -23,14 +23,16 @@ Enter
 Sleep 500ms
 Show
 
-Type "# GraalVM native-image PE64 — capability detection"
+Type "# GraalVM native-image PE — Cysmos"
 Enter
-Sleep 1s
-
-Type "capa-rs samples\graalvm"
+Sleep 0.5s
+Type "capa-rs graalvm_cysmos"
 Enter
 Sleep 8s
 
-Type "capa-rs -v samples\graalvm"
+Type "# Verbose output"
+Enter
+Sleep 0.5s
+Type "capa-rs -v graalvm_cysmos"
 Enter
 Sleep 8s

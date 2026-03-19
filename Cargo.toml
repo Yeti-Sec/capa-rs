@@ -4,7 +4,6 @@ members = [
     "crates/capa-core",
     "crates/capa-backend",
     "crates/capa-cli",
-    "crates/dotscope",
 ]
 
 [workspace.package]
@@ -54,6 +53,15 @@ sha2 = "0.10"
 # Terminal colors
 colored = "2.1"
 
+# Timestamps
+chrono = { version = "0.4", features = ["serde"] }
+
+# Protobuf
+prost = "0.13"
+prost-reflect = { version = "0.14", features = ["text-format"] }
+prost-types = "0.13"
+
 # Internal crates
 capa-core = { path = "crates/capa-core" }
 capa-backend = { path = "crates/capa-backend" }
+

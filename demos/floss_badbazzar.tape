@@ -1,6 +1,6 @@
-# capa-rs demo — ELF binary analysis
+# capa-rs demo — BadBazaar analysis
 
-Output demos/elf.gif
+Output demos/floss_badbazzar.gif
 
 Set Shell "powershell"
 Set FontSize 14
@@ -23,16 +23,16 @@ Enter
 Sleep 500ms
 Show
 
-Type "# ELF binary analysis — Mirai"
+Type "# BadBazaar analysis"
 Enter
 Sleep 0.5s
-Type "capa-rs elf_mirai"
+Type "capa-rs floss_badbazzar"
 Enter
 Sleep 8s
 
 Type "# Verbose output"
 Enter
 Sleep 0.5s
-Type "capa-rs -v elf_mirai"
+Type "capa-rs -v floss_badbazzar"
 Enter
 Sleep 8s
