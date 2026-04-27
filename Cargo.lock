@@ -147,6 +147,25 @@ dependencies = [
  "clang-sys",
  "itertools 0.13.0",
  "log",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "rustc-hash",
+ "shlex",
+ "syn 2.0.117",
+]
+
+[[package]]
+name = "autocxx-bindgen"
+version = "0.73.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ecaaf84d9cf1a772409c0abdac7d2477a31fd890dbdf606d8f684dc60129aa94"
+dependencies = [
+ "bitflags",
+ "cexpr",
+ "clang-sys",
+ "itertools 0.13.0",
+ "log",
  "prettyplease",
  "proc-macro2",
  "quote",
@@ -175,7 +194,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d8f30534af0f55d56743806ea9d49fbd85559f2bd3ec074fb3268ad1827fa92"
 dependencies = [
  "aquamarine",
- "autocxx-bindgen",
+ "autocxx-bindgen 0.71.1",
  "autocxx-parser",
  "cc",
  "cxx-gen",
@@ -986,7 +1005,7 @@ version = "0.7.2+9.2.250908"
 dependencies = [
  "anyhow",
  "autocxx",
- "autocxx-bindgen",
+ "autocxx-bindgen 0.73.0",
  "autocxx-build",
  "bitflags",
  "cxx",
