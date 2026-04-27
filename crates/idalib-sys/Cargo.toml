@@ -25,7 +25,7 @@ include = [
 
 [dependencies]
 anyhow = "1"
-autocxx = "0.27"
+autocxx = "0.30"
 bitflags = "2"
 cxx = "1"
 thiserror = "1"
