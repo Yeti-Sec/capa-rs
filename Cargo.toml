@@ -51,7 +51,7 @@ iced-x86 = "1.21"  # Blazingly fast x86/x64 disassembler (>250 MB/s)
 capstone = "0.14"  # Multi-architecture disassembler (ARM, AArch64, MIPS, etc.)
 
 # Hashing
-md-5 = "0.10"
+md-5 = "0.11"
 sha1 = "0.10"
 sha2 = "0.10"
 
