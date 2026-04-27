@@ -53,7 +53,7 @@ capstone = "0.14"  # Multi-architecture disassembler (ARM, AArch64, MIPS, etc.)
 # Hashing
 md-5 = "0.10"
 sha1 = "0.10"
-sha2 = "0.10"
+sha2 = "0.11"
 
 # Terminal colors
 colored = "2.1"
