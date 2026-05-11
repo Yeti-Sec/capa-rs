@@ -54,7 +54,7 @@ sha2 = "0.10"
 colored = "2.1"
 
 # Protobuf
-prost = "0.13"
+prost = "0.14"
 
 # Internal crates
 capa-core = { path = "crates/capa-core" }
