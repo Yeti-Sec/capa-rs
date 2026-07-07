@@ -1,0 +1,54 @@
+// CAPA package provides message types for FLARE Capability Analysis results and framework mappings.
+syntax = "proto3";
+
+package shared.models.capa;
+
+// MITRE ATT&CK framework mapping for detected capabilities.
+message Attack {
+  // Hierarchical parts of the attack taxonomy.
+  repeated string parts = 1;
+  // MITRE ATT&CK tactic category.
+  string tactic = 2;
+  // MITRE ATT&CK technique identifier.
+  string technique = 3;
+  // MITRE ATT&CK sub-technique identifier.
+  string subtechnique = 4;
+  // Unique identifier for this attack mapping.
+  string id = 5;
+}
+
+// Malware Behavior Catalog (MBC) framework mapping for detected capabilities.
+message Mbc {
+  // Hierarchical parts of the MBC taxonomy.
+  repeated string parts = 1;
+  // MBC objective category.
+  string objective = 2;
+  // MBC behavior classification.
+  string behavior = 3;
+  // MBC method specification.
+  string method = 4;
+  // Unique identifier for this MBC mapping.
+  string id = 5;
+}
+
+// CAPA rule that matched during analysis.
+message Rule {
+  // Name of the matched rule.
+  string name = 1;
+  // Namespace or category of the rule.
+  string namespace = 2;
+  // Associated MITRE ATT&CK mappings.
+  repeated Attack attacks = 3;
+  // Associated MBC mappings.
+  repeated Mbc mbcs = 4;
+  // Full content or definition of the rule.
+  string rule_content = 5;
+  // Number of times this rule matched.
+  uint64 num_of_matches = 6;
+}
+
+// Complete CAPA analysis result containing matched rules.
+message CapaResult {
+  // List of rules that matched during analysis.
+  repeated Rule rules = 1;
+}

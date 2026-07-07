@@ -1,0 +1,2818 @@
+{
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-backend\\build.rs": {
+    "mtime": 1776276344195.0305,
+    "hash": "e25cf34bf187032ab9021161ecbd0ebc"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-backend\\src\\dotnet_extractor.rs": {
+    "mtime": 1773148196000,
+    "hash": "8e8651bad3dba97708ed85c5403e2a07"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-backend\\src\\extractor.rs": {
+    "mtime": 1775051172403.4602,
+    "hash": "5b4199a871ff982d3e4a0a691aef762f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-backend\\src\\hashing.rs": {
+    "mtime": 1773255828072.2312,
+    "hash": "40e229ef7f11fccf8319abe223bf91f9"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-backend\\src\\helpers.rs": {
+    "mtime": 1773257757057.7278,
+    "hash": "557bdc71652a833a857802e39b7e550e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-backend\\src\\ida_extractor.rs": {
+    "mtime": 1774898809229.8938,
+    "hash": "f91736880963fadf3484ebe096e3ac51"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-backend\\src\\ida_lifter.rs": {
+    "mtime": 1774964205680.7932,
+    "hash": "40b7076f36711137a16db1b3be8b0e37"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-backend\\src\\ida_loader.rs": {
+    "mtime": 1774969357586.5686,
+    "hash": "9740472bc86f7976f7762a4de45540cd"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-backend\\src\\lib.rs": {
+    "mtime": 1775051273076.3975,
+    "hash": "8e07aca5d52a084eeebb9c0c25b07fe7"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-backend\\src\\lifter.rs": {
+    "mtime": 1773148196000,
+    "hash": "5eb31b32051d1f2bb71e620f487cc3d9"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-backend\\src\\loader.rs": {
+    "mtime": 1775051278993.8416,
+    "hash": "d9cc4611d6bb48dda34ca659d10c4eab"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-backend\\src\\strings.rs": {
+    "mtime": 1773257757028.4248,
+    "hash": "130144f771553a34a434bb92a9985a6a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-backend\\tests\\test_extractor_hashing.rs": {
+    "mtime": 1773255900759.7585,
+    "hash": "cefbada683c987bc720e561189376ab8"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-backend\\tests\\test_helpers.rs": {
+    "mtime": 1773258277410.9912,
+    "hash": "0f98300eaf278e9c61b5f6b78b1094c3"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-backend\\tests\\test_loader.rs": {
+    "mtime": 1773258298972.2104,
+    "hash": "c47ff9b2968dfaa2032fd46dde068ce2"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-backend\\tests\\test_strings.rs": {
+    "mtime": 1773257822408.774,
+    "hash": "477f24304f0b29ff8a0eef0a6e699938"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-cli\\build.rs": {
+    "mtime": 1776276344076.7612,
+    "hash": "ede25a93951dfb07f4440b0f42360069"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-cli\\src\\main.rs": {
+    "mtime": 1776277450722.756,
+    "hash": "4e04f88bea79ffdc1dae14a85ed38f79"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-core\\build.rs": {
+    "mtime": 1776277349298.9263,
+    "hash": "e1a936a94e4c2664cc56d6d42c02d4e4"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-core\\src\\error.rs": {
+    "mtime": 1773148196000,
+    "hash": "feed26788879e924e2883b0caa2d78b3"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-core\\src\\feature\\extractor.rs": {
+    "mtime": 1773148196000,
+    "hash": "af9c435a4ff65bad630a9541ad8cfc3e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-core\\src\\feature\\mod.rs": {
+    "mtime": 1773148196000,
+    "hash": "c83df494c81c5a160ba9117614ead748"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-core\\src\\feature\\types.rs": {
+    "mtime": 1773148196000,
+    "hash": "364b827287f3649e0d49c36d36fa4a55"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-core\\src\\lib.rs": {
+    "mtime": 1773148196000,
+    "hash": "dabb3ac1b3cd5e0c0632890ee289657f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-core\\src\\matcher\\engine.rs": {
+    "mtime": 1775051362763.339,
+    "hash": "f2f35aec494c22cce387e40a19c66c0d"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-core\\src\\matcher\\mod.rs": {
+    "mtime": 1773148196000,
+    "hash": "ec050820bb2e55711fefd5a8e9430858"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-core\\src\\output\\json.rs": {
+    "mtime": 1776277399547.6892,
+    "hash": "ec733b0c649f397fd57f898ef2701f41"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-core\\src\\output\\mod.rs": {
+    "mtime": 1776277434033.9443,
+    "hash": "808f8cbab34a81836b3bf9b256b83df1"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-core\\src\\output\\pipeline.rs": {
+    "mtime": 1776277428031.1475,
+    "hash": "67d2a087e2154a59cc67981f662c1738"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-core\\src\\rule\\mod.rs": {
+    "mtime": 1773148196000,
+    "hash": "821e89cd883d75f81852deedc8df77c1"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-core\\src\\rule\\parser.rs": {
+    "mtime": 1775051195166.2744,
+    "hash": "68477c06112678a377f9e83791fb62e2"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-core\\src\\rule\\types.rs": {
+    "mtime": 1775051178292.8364,
+    "hash": "faf327131aa49eb572c8d5c0a60a10f3"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-core\\src\\rule\\validation.rs": {
+    "mtime": 1773148196000,
+    "hash": "7c840cafe5344be29f987a9a86eb7190"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-core\\tests\\test_capabilities.rs": {
+    "mtime": 1773257959465.5496,
+    "hash": "54cd8caac06112ab1bb88a3603957409"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-core\\tests\\test_engine.rs": {
+    "mtime": 1773251126323.371,
+    "hash": "f13233198be868fbcb828fb507241b96"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-core\\tests\\test_match.rs": {
+    "mtime": 1773251126361.414,
+    "hash": "ddf6c6d25e811be5be78e55eb9b84e10"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-core\\tests\\test_output.rs": {
+    "mtime": 1773252045758.1687,
+    "hash": "55f90626c6d9f739f79226936c991e08"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-core\\tests\\test_rules.rs": {
+    "mtime": 1773251126339.9666,
+    "hash": "7dc22aa524e24460c9c207194f19aa37"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-core\\tests\\test_rules_extended.rs": {
+    "mtime": 1773259369760.0703,
+    "hash": "445582a9faf6417edcad57377fce9dff"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-core\\tests\\test_rules_insn_scope.rs": {
+    "mtime": 1773251932312.5933,
+    "hash": "a1c928af7044a894f0fee1321f4697ff"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-core\\tests\\test_rule_features.rs": {
+    "mtime": 1773258272286.2727,
+    "hash": "1e711e0f9e3b7c2819737b7f4c57967e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\capa-core\\tests\\test_serialization.rs": {
+    "mtime": 1773257959511.1753,
+    "hash": "5d82a653ae178159a88e195d1ca4f6ad"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\benches\\assembly.rs": {
+    "mtime": 1773148197000,
+    "hash": "a53dc7a646b16456f166d13be45f6776"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\benches\\cilassemblyview.rs": {
+    "mtime": 1773148197000,
+    "hash": "2673d60a22e6e86ea84b4b9098aafeb1"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\benches\\cilobject.rs": {
+    "mtime": 1773148197000,
+    "hash": "154cf097c4d0357264275db952ff0cc1"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\benches\\cor20.rs": {
+    "mtime": 1773148197000,
+    "hash": "59e40e44fd2072301171dcbb3e5461e8"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\benches\\method_body.rs": {
+    "mtime": 1773148197000,
+    "hash": "f9e520b87bf218a246f2bd17ce94fb3f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\benches\\resources.rs": {
+    "mtime": 1773148197000,
+    "hash": "f1294d14bd7883cd7d1d2039ffdebf35"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\benches\\security.rs": {
+    "mtime": 1773148197000,
+    "hash": "abe36f5b3f222232f71a40d60a2d1ff7"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\benches\\signatures.rs": {
+    "mtime": 1773148197000,
+    "hash": "7ec32ed88232d3c6720dd3a4edb42747"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\benches\\streams.rs": {
+    "mtime": 1773148197000,
+    "hash": "d55461b01e6a1baf4995c792e7672695"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\examples\\basic.rs": {
+    "mtime": 1773148197000,
+    "hash": "1c33fbef353fff09d50abd8c772ff148"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\examples\\comprehensive.rs": {
+    "mtime": 1773148197000,
+    "hash": "4bf6c99bd3bcb5cfcb352ca4b32de712"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\examples\\decode_blocks.rs": {
+    "mtime": 1773148197000,
+    "hash": "c5a0dc530d5612675374096388bf7c20"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\examples\\disassembly.rs": {
+    "mtime": 1773148197000,
+    "hash": "f965cdb3aa1548495271fb7c50a527d1"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\examples\\injectcode.rs": {
+    "mtime": 1773148197000,
+    "hash": "65a18877ad6cab6f00965eda19ce8f67"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\examples\\lowlevel.rs": {
+    "mtime": 1773148197000,
+    "hash": "e5a064997c1c37fd6031959b85904122"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\examples\\metadata.rs": {
+    "mtime": 1773148197000,
+    "hash": "78ba07eefe8d88e6d82b15665ca64d9a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\examples\\method_analysis.rs": {
+    "mtime": 1773148197000,
+    "hash": "52df8899cbf92945568ab4709a7ecf0a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\examples\\modify.rs": {
+    "mtime": 1773148197000,
+    "hash": "12ba7b503a048b95f27b5badcf38dca2"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\examples\\project_loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "c569b8a1098ab5f10f9179d159aac1d4"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\examples\\raw_assembly_view.rs": {
+    "mtime": 1773148197000,
+    "hash": "5865ac8352620db94d8ef624273f77d6"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\examples\\types.rs": {
+    "mtime": 1773148197000,
+    "hash": "49beab48e12c0b5f69fcd177e850e944"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\fuzz\\fuzz_targets\\cilobject.rs": {
+    "mtime": 1773148197000,
+    "hash": "10669d0a422e1eb03987a2e357972db9"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\assembly\\block.rs": {
+    "mtime": 1773148197000,
+    "hash": "6b4c3e30e9ce71adc6a6bcbaa69133f0"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\assembly\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "c0798f8fa410b455294deae5b727adf0"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\assembly\\decoder.rs": {
+    "mtime": 1773148197000,
+    "hash": "ebbd6e0bad49bf071c1bbd7b7546c1ad"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\assembly\\encoder.rs": {
+    "mtime": 1773148197000,
+    "hash": "03617ec5899125fa5e716a5f27a5ffa1"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\assembly\\instruction.rs": {
+    "mtime": 1773148197000,
+    "hash": "8146200fa43a83c682ca8cbe5dcf33b0"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\assembly\\instructions.rs": {
+    "mtime": 1773148197000,
+    "hash": "1ad7a067711c959bcc10e9fbd7743412"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\assembly\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "65f5be6889891f1c0e4f3a97e7440db4"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\assembly\\visitedmap.rs": {
+    "mtime": 1773148197000,
+    "hash": "a81b9628fc22bdc17d1cd58dd7636a8c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "5332f5b4c1ff22f085dbd27a5ab332ab"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\builders\\class.rs": {
+    "mtime": 1773148197000,
+    "hash": "d799877806ceef408ac7c6362ed24c3f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\builders\\enums.rs": {
+    "mtime": 1773148197000,
+    "hash": "8bf44cf85c1da96690a4d669729dc8e0"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\builders\\event.rs": {
+    "mtime": 1773148197000,
+    "hash": "bdaeb4a1f1314fa15c28d9bc0f87afad"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\builders\\interface.rs": {
+    "mtime": 1773148197000,
+    "hash": "23c931a5adb31f7153707c5dff28166a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\builders\\method.rs": {
+    "mtime": 1773148197000,
+    "hash": "53e7d7a5d1869cfbab1cf7e1fc4c154d"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\builders\\method_body.rs": {
+    "mtime": 1773148197000,
+    "hash": "f69e641ca73d3ecf229b061795e72b12"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\builders\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "85e2e5355c2e69d2bcbe048cf9a2ebe5"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\builders\\property.rs": {
+    "mtime": 1773148197000,
+    "hash": "96b624bcf5ae46caef6b72a90fd53591"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\changes\\assembly.rs": {
+    "mtime": 1773148197000,
+    "hash": "003f5ad542843f0ff4909ced85509ad1"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\changes\\heap.rs": {
+    "mtime": 1773148197000,
+    "hash": "89605ebe3cacffa9d1fa226dc0937011"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\changes\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "31113f24555d09f98a11f6360f1b232f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "fe8b1b04304d99e672f1244b9d36c707"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\modifications.rs": {
+    "mtime": 1773148197000,
+    "hash": "ac8fc551e28541e2365231cca70a34e6"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\operation.rs": {
+    "mtime": 1773148197000,
+    "hash": "bfbd9b6aed4cbdb1258c155c0c2a6c5c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\remapping\\index.rs": {
+    "mtime": 1773148197000,
+    "hash": "90ce800f44e64351c7fc353b75d94c88"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\remapping\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "e0366b5ac25c799916843b4ebd7368b8"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\remapping\\rid.rs": {
+    "mtime": 1773148197000,
+    "hash": "85aac5978072b5df7c2a76910bef54d9"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\resolver.rs": {
+    "mtime": 1773148197000,
+    "hash": "0a503f7da631de9ddced9e8936cde7e7"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\writer\\executor.rs": {
+    "mtime": 1773148197000,
+    "hash": "d0e7bed04ddff55287b4d18ca957ee91"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\writer\\heaps\\blob.rs": {
+    "mtime": 1773148197000,
+    "hash": "2a5e2b54c7f5c97de79ee2a15e59661b"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\writer\\heaps\\guid.rs": {
+    "mtime": 1773148197000,
+    "hash": "bf3c231699c7c3380efe86d0141aa3c1"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\writer\\heaps\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "77584e29c3ffb287a2c5937ba8b36e23"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\writer\\heaps\\string.rs": {
+    "mtime": 1773148197000,
+    "hash": "103b3cd8582042362a08a441084b92f8"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\writer\\heaps\\userstring.rs": {
+    "mtime": 1773148197000,
+    "hash": "84553092adf0de69a30dc9b17c81e630"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\writer\\layout\\heaps.rs": {
+    "mtime": 1773148197000,
+    "hash": "44164f37f590f20cb00196ef1300aa0a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\writer\\layout\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "d5c196cfebf115f8c408430ee7ed8239"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\writer\\layout\\planner.rs": {
+    "mtime": 1773148197000,
+    "hash": "732ef2c599f6e5477080be8e184f8830"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\writer\\layout\\region.rs": {
+    "mtime": 1773148197000,
+    "hash": "feccc629fb04b9a1cc0adb2f06113c66"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\writer\\layout\\tables.rs": {
+    "mtime": 1773148197000,
+    "hash": "f6219a0cc649b79836b4854e57af0e8c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\writer\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "3e59fc81a4e8d79605ceaadb16f4959e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\writer\\operations\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "b3ddd0e39f2c71fe5c668e2aa77274f4"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\cilassembly\\writer\\output.rs": {
+    "mtime": 1773148197000,
+    "hash": "d6ba8353fe6d5a92176a4fde83981bb6"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\error.rs": {
+    "mtime": 1773148197000,
+    "hash": "42a64db9014258d41d74aadc33340264"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\file\\memory.rs": {
+    "mtime": 1773148197000,
+    "hash": "7a030e98dc2f8f5a35ec8bf379f2ffc3"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\file\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "4c7eff15d829f3474fd7a6abc25a877d"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\file\\parser.rs": {
+    "mtime": 1773148197000,
+    "hash": "033ae8b218d3fb97fb30817689879245"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\file\\pe.rs": {
+    "mtime": 1773148197000,
+    "hash": "b1c4e7943d40afd51a69a0a1138eb24e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\file\\physical.rs": {
+    "mtime": 1773148197000,
+    "hash": "b889508d2eece2ae857dbd2fe95d44bd"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\lib.rs": {
+    "mtime": 1773148197000,
+    "hash": "d76c7189e5f5f59d182590eba20d4d44"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\macros.rs": {
+    "mtime": 1773148197000,
+    "hash": "ffe77ab8f935548e64fbb242f3940f4d"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\cilassemblyview.rs": {
+    "mtime": 1773148197000,
+    "hash": "0ed80301d60664faba9010f36119f285"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\cilobject.rs": {
+    "mtime": 1773148197000,
+    "hash": "f4ed830769250bf8ba727e7edecf9190"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\cor20header.rs": {
+    "mtime": 1773148197000,
+    "hash": "89da2e9c00b5c48d00a01d6caccddb8b"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\customattributes\\encoder.rs": {
+    "mtime": 1773148197000,
+    "hash": "f112852ae03a87cad09a208899ea46ea"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\customattributes\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "e7d2b2988537007f893fc07d1093a90e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\customattributes\\parser.rs": {
+    "mtime": 1773148197000,
+    "hash": "530330dc600567cd50b99853625546b5"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\customattributes\\types.rs": {
+    "mtime": 1773148197000,
+    "hash": "d8e95ccd148250310ad105ab2f21af03"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\customdebuginformation\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "5c2d745d06ebdc9de7ac975b32bfb295"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\customdebuginformation\\parser.rs": {
+    "mtime": 1773148197000,
+    "hash": "aa9229cdee59a841ef4be52cf8a4e45c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\customdebuginformation\\types.rs": {
+    "mtime": 1773148197000,
+    "hash": "e5ed1cd0511921ed58f57aa3341a9ff9"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\dependencies\\analyzer.rs": {
+    "mtime": 1773148197000,
+    "hash": "7dc61ecca102388bb87fa01304e16fdd"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\dependencies\\graph.rs": {
+    "mtime": 1773148197000,
+    "hash": "f0dbf63d95735a5785e4b4eea914fbef"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\dependencies\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "9e8ecb27516b3973d5f54de238802152"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\dependencies\\types.rs": {
+    "mtime": 1773148197000,
+    "hash": "b1194c07d5df669c73c221969875f11f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\exports\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "a04370a9f72de9cc7c710e65c2ce784e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\exports\\cil.rs": {
+    "mtime": 1773148197000,
+    "hash": "863d68b68edf7ae5bde2cf11e33df113"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\exports\\container.rs": {
+    "mtime": 1773148197000,
+    "hash": "de15898afd5c30887ecfda61be343659"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\exports\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "4fa63c790c75a046b17059343a3d80b8"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\exports\\native.rs": {
+    "mtime": 1773148197000,
+    "hash": "4011b39bd0bcf442bad86e881fbbbeac"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\identity\\assembly.rs": {
+    "mtime": 1773148197000,
+    "hash": "928a379de111ff1afea9532f80987e04"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\identity\\cryptographic.rs": {
+    "mtime": 1773148197000,
+    "hash": "73270b062611d8655f450a4eca3836fc"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\identity\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "9b05104cb290f211b2edeb4cc02481c5"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\imports\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "262f0f2ab93251a1272006bc9143fac2"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\imports\\cil.rs": {
+    "mtime": 1773148197000,
+    "hash": "9f63666710e4899c1b781cd5e04187b8"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\imports\\container.rs": {
+    "mtime": 1773148197000,
+    "hash": "20bb3fd625b55fb59bb64093d297bc64"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\imports\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "1ca921c52486f8e478fbb173fea1a4fb"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\imports\\native.rs": {
+    "mtime": 1773148197000,
+    "hash": "4988b32ba887c8635449b96a333ccf98"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\importscope\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "71ade11d99dbd74e2770d9f15c41e5a7"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\importscope\\parser.rs": {
+    "mtime": 1773148197000,
+    "hash": "6e1b7fef7fbf9864e2b206a06167d805"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\importscope\\types.rs": {
+    "mtime": 1773148197000,
+    "hash": "982a0d7bfbb2da010ea07c99a225da74"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\loader\\context.rs": {
+    "mtime": 1773148197000,
+    "hash": "35722f39cf28e47380d3fba44eb26c1a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\loader\\data.rs": {
+    "mtime": 1773148197000,
+    "hash": "369b490eff66aafba2422a53f8d42ea1"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\loader\\graph.rs": {
+    "mtime": 1773148197000,
+    "hash": "d8b1ab2ff901d9829449ad3386b7c2f8"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\loader\\inheritance.rs": {
+    "mtime": 1773148197000,
+    "hash": "3f3e42d120d2b3becd6594ae7288730d"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\loader\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "b96253672e0e90ba68e09880f2fe39ee"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\marshalling\\encoder.rs": {
+    "mtime": 1773148197000,
+    "hash": "730f36d9077a2ee74c9397ba425d6bd2"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\marshalling\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "03125e669a4d380fa02d299b63e46fba"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\marshalling\\parser.rs": {
+    "mtime": 1773148197000,
+    "hash": "b6822591eb423f1241433db91f80fc0b"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\marshalling\\types.rs": {
+    "mtime": 1773148197000,
+    "hash": "18175a82012c623361ffc0c6b3177ce3"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\method\\body.rs": {
+    "mtime": 1773148197000,
+    "hash": "36873dd68890d4a31598db9e9c2803b0"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\method\\encode.rs": {
+    "mtime": 1773148197000,
+    "hash": "c82d4c7f2b3a10df84f9af3624466ebb"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\method\\exceptions.rs": {
+    "mtime": 1773148197000,
+    "hash": "035ba6c62cde4ac7267926e8e3669366"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\method\\iter.rs": {
+    "mtime": 1773148197000,
+    "hash": "79f330dfefbc577a86071ea094bd78d1"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\method\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "a2d18803d71f92b72fc07bd3e50638d7"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\method\\types.rs": {
+    "mtime": 1773148197000,
+    "hash": "b057edd12170c29f03f15b919d8a6511"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "3df5fb5049694e082c750f2299b50dd5"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\resources\\encoder.rs": {
+    "mtime": 1773148197000,
+    "hash": "74f4282d5973277354318f31cf7ac919"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\resources\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "837cdde82f7b65296f76c2bc54bd7b6e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\resources\\parser.rs": {
+    "mtime": 1773148197000,
+    "hash": "057a0690f26beb1ac858b6a176c12813"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\resources\\types.rs": {
+    "mtime": 1773148197000,
+    "hash": "c9e7aa205faf178ff2cc8e815f69cd59"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\root.rs": {
+    "mtime": 1773148197000,
+    "hash": "e4fd66ac94c1856eb8da0ee16545e018"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\security\\builders.rs": {
+    "mtime": 1773148197000,
+    "hash": "f6d9925142760f52854d4e02b9bc348a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\security\\encoder.rs": {
+    "mtime": 1773148197000,
+    "hash": "4a0aba3aa16413aa1a758f51a350c294"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\security\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "852798738622424b9474a1b0aa5c5dcc"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\security\\namedargument.rs": {
+    "mtime": 1773148197000,
+    "hash": "7bf4084012425e4c9ee00bb881b96c9d"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\security\\permission.rs": {
+    "mtime": 1773148197000,
+    "hash": "1b1b104ce2677a2efee1b23583dd0a64"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\security\\permissionset.rs": {
+    "mtime": 1773148197000,
+    "hash": "8282d203860d157f5d21a80ed7fb7257"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\security\\types.rs": {
+    "mtime": 1773148197000,
+    "hash": "fa61f9eae05b8b23546f1ca43710d1e5"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\sequencepoints.rs": {
+    "mtime": 1773148197000,
+    "hash": "c50428e72f202799e73bd0200eb141c6"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\signatures\\builders.rs": {
+    "mtime": 1773148197000,
+    "hash": "c523f77ceb6a9006b64c07d902272f2d"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\signatures\\encoders.rs": {
+    "mtime": 1773148197000,
+    "hash": "149bea43418eec9e6ac031d7d8b1bf62"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\signatures\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "2a22b4d67418135baf2f432206bcebc6"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\signatures\\parser.rs": {
+    "mtime": 1773148197000,
+    "hash": "319b84128984f2eda3199a8473fb56be"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\signatures\\types.rs": {
+    "mtime": 1773148197000,
+    "hash": "27e042cd836a5677daa0db9b1610c414"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\streams\\blob.rs": {
+    "mtime": 1773148197000,
+    "hash": "e4531a65f7af5132e3eaa391ee56a10c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\streams\\guid.rs": {
+    "mtime": 1773148197000,
+    "hash": "03f13eba299b35b534ce70f679d5c3d6"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\streams\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "b951cd17e87136c5d5c2302826f17296"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\streams\\streamheader.rs": {
+    "mtime": 1773148197000,
+    "hash": "1b6f3e2d773f5d3607e038a8b64c60c7"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\streams\\strings.rs": {
+    "mtime": 1773148197000,
+    "hash": "49c225e52eaffdae77468b278421f088"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\streams\\tablesheader.rs": {
+    "mtime": 1773148197000,
+    "hash": "314f869e6af6542cc4f3fab3e29f9db2"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\streams\\userstrings.rs": {
+    "mtime": 1773148197000,
+    "hash": "d3e52be1b4c2d8fbdc5b4dd0beb4f9fc"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assembly\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "4c2527c7ca649b43c275eaa3b5b1e25f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assembly\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "0c93db5a6ed5cc907c7a06c204d08bff"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assembly\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "cadd7fed61814d6208096df5b67755e1"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assembly\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "fb15ecef3938a5babd06e2f37dc6c7ac"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assembly\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "d6e80c3a7a29caf38008049f7400ba15"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assembly\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "e61ad8eec7acf74da579733109d50baf"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assembly\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "e315d61273ce45700517f308be958bab"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyos\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "bb6bd64e9f86751519c70416c57322cc"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyos\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "f0a94b1df9528dff2485c051377baf00"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyos\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "6a410e41e7bed2a4c673f6591af2033b"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyos\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "82c7f8ba75f90643aaeec649a4b90c51"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyos\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "0f849b6a4883bcead0de3daaff51638d"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyos\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "cd422be807c6f4cb5c23a57715612615"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyprocessor\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "7152ded7c00ea49a85be06db0a63a049"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyprocessor\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "80a770e2c09b3766123dbd2e72093d22"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyprocessor\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "0d337fe76ef1165c5b0f177161b9e660"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyprocessor\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "84fd0226625d8ab8590ea6831dc0ae70"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyprocessor\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "5b55f5ae25f2efc8b54adf6e299bf12c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyprocessor\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "ef5c6f156b7f93801e1d391fd550b6ee"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyref\\assemblyrefhash.rs": {
+    "mtime": 1773148197000,
+    "hash": "8dd1ca4cb3c0bc5eb3fdc74d6b90d02e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyref\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "93b9e0f0d6b66fedef2c131ab09b0059"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyref\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "e01689467585047f0177c47cf0a29d84"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyref\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "7525db710d64739879c2d4f7350de2bd"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyref\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "d85bc9dba20e129d71251e4c7ee047c1"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyref\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "e599a83d92cb0d1fd3427024f2fcb5c4"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyref\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "7111fece06c653316a17828adcafd0ed"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyref\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "2aacff9bea1f30045eed4268b22ef6b5"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyrefos\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "1650b03a20da3f27b18c9908ab983cd9"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyrefos\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "629bf6f6f4a5fcc02b9d0744dfd52118"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyrefos\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "704071311519c6a4c8362df1c71aba14"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyrefos\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "7bc49d7c5160ead2c292186d232103ed"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyrefos\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "4d2a0c937ad06c5609c1015f687068b2"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyrefos\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "54b810265e4bcbf1fc7bdd2e1a744e6f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyrefos\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "f8997fb94e185c1e760302f52c082021"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyrefprocessor\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "c2c4e84fc1482f51a4f7b6a2bab31e2f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyrefprocessor\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "a2d2406a1e179c607488e152c4afd180"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyrefprocessor\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "4b893c61e8f891d1aaa581c1720c1639"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyrefprocessor\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "6843d059e5a9b85c9cb72e92a5c34816"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyrefprocessor\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "36ddf48e697b76fb7130f14aa85eda7b"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyrefprocessor\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "e4caeabcf0e7d2270da38ca3746ad90c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\assemblyrefprocessor\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "afc2eb3a0fb8ae146f8f28462acb09fa"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\classlayout\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "a00481eeed2cd8d2c4c6b63dfe739bda"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\classlayout\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "510d3238a784dffca41f04f165df2977"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\classlayout\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "ba23039e1208b08b218bc47ca50aa32a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\classlayout\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "2b078988a691bb11ad08b3d842df8b2e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\classlayout\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "e2f90a7493d6a9d0e2f53ef92762667e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\classlayout\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "352504f12826e100ca9526597b5eb3c7"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\classlayout\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "9c70680aa305185a92dc5d5daf1c9230"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\constant\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "84d441acfafe593835e8f442ea2e69fc"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\constant\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "633f097bad2125bdfce1e4212f752b51"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\constant\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "7d0b3fa9644fe775018fcd2bd4fb097e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\constant\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "4aca1ee41c5d701bdfb8e2a1e6255517"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\constant\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "a4b4509e12e796eb21f5be190d8e3a3b"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\constant\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "036aead84209610e18b1fa68fe4e131e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\constant\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "80b1afee6fb366458cb1cd3c5d006b35"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\customattribute\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "a87931b3c42a94be4e9593dbf4d89090"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\customattribute\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "a971479b523194b9be4a3f0083cdc724"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\customattribute\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "f379d903923bc764f777c9abb1e29c8a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\customattribute\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "02c80ed0b1852a6a40e378a7a1e78ec1"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\customattribute\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "d4a9be629c71960a63541b0258c4d2ab"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\customattribute\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "ab204717670d67bab2c04e2ae2ec7d66"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\customattribute\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "5b58b65d3b9a8f78b16bc11b7c8c53d5"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\customdebuginformation\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "7314dc4ed87f55ef4cee576ad8463ec2"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\customdebuginformation\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "53273cec4b129bfe7b54dddada92a530"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\customdebuginformation\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "1f1e7bcedb5cb355e3bebbcf56efa402"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\customdebuginformation\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "41e29bc048055b2665a2e5598f590fac"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\customdebuginformation\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "d03b32ee945b623b269c7371cf63baf0"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\customdebuginformation\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "643e3e7cfa3ba825c70d2b3baa6d89cc"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\customdebuginformation\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "6230fd1e06d4f1f8fa67ee00b5d60507"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\declsecurity\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "7c8eb8cbb17c50420ae5219ff5430fb4"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\declsecurity\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "b8142ffe4fc7afe33e99a6d34df3c147"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\declsecurity\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "1f0bd32bdf4b3f6a434aef4337e2b475"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\declsecurity\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "ee31e2ef6f7f97c80c534c53c6ff4cf9"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\declsecurity\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "a4d15717b56dc63cff052a5ec8865f77"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\declsecurity\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "113b4ae381f8b6066264a9108bd96337"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\declsecurity\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "1501fabdb4fba3d7ff779b04d5bac729"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\document\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "b3b8557cae6fbe02d38bfbb7271f709e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\document\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "d981b8fee996afe5bff7a3e5f5fdbbf2"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\document\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "59c009bf5134db4064c1eae04ef6f652"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\document\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "e23f97aa2836e25b5c56ed878fc5edc0"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\document\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "7160afddd1703955caf88a96721c90a3"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\document\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "a1468d4fe0edbbb7b5139192c1877d83"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\document\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "11b27aab73429be17820e478adf4aa08"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\enclog\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "57df9ebc3c1fb43af5d2f27242ade5fd"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\enclog\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "15d3523e3a0936ebf124ac231c9101a8"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\enclog\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "e77f6d2a613e0b053f30cbca76a05b6a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\enclog\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "abba3bbe49d1cb23499fd409516ce145"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\enclog\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "37a295c5f83bf61147ee6b528da9adc2"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\enclog\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "cc7a22bd23cd58ad2698b55748efb04a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\encmap\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "4867e8c8fc05a7830d1dde1505dfda2e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\encmap\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "d4f907772c3cff271bd23ec327d60ec0"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\encmap\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "48c70c495b5f9101ea91a0c847237788"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\encmap\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "e7cda4528240a9428ab6aff6ff613d5d"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\encmap\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "5e766dcd78d74db30541a3ab18b4db30"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\encmap\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "b7ba3646905468ef327fdec36af62e99"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\event\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "458e2a13e16ba87b1dba7e8c6c8a816c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\event\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "d25d5124d9b2d798851de862ef651237"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\event\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "42d3063288259b2cfbe38be4a9b8b2ca"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\event\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "4f578116000d51025bf7fa9238b2cc62"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\event\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "86b451f98922d8a9e15d4d130c8874eb"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\event\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "8a0d670fafe5bf51842807b4375451e8"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\event\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "2bdbab9fc0bcf1a8833351fd97c1e2d8"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\eventmap\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "50f53d85955a366f3bb710594b8b77f6"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\eventmap\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "b112c9ca1f9de572dd64cd9cc90a8f92"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\eventmap\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "6a2934916d3d862096d9d9d90b5139cc"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\eventmap\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "5ede3ef56e050e0314c024e08363c6c5"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\eventmap\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "f3789c194635722dce7b4b3878bfaadc"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\eventmap\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "13b73b5d034ba1c99a0e8419beefb0fb"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\eventmap\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "012fab78447134f09250e042bee55cd7"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\eventptr\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "8f0e0baeb44fa07c6427dfd8209bc07f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\eventptr\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "48078f298a13b8805d082fa89966fa76"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\eventptr\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "3a2c626cf5c56fd1333502acf64449d6"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\eventptr\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "331db5896fb103c8fb1b9080905ec74e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\eventptr\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "5a1566c24c566a55fc3a983699fed567"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\eventptr\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "ba73d171b391bb924ac12c616acda9a6"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\eventptr\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "a5cc447023e771bdb83136c2c0d1818b"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\exportedtype\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "1e2746b8eacc7482e1f8c795f2b5b2a9"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\exportedtype\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "bdb285aecb18df28f9310f1139cad9ba"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\exportedtype\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "d4149929231cf8226e133784995dd2ef"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\exportedtype\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "18438a66881c7d5bbc9e12bfb87176f8"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\exportedtype\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "5c4c20797d6cad4c355d1e199e02f290"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\exportedtype\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "59c6c7de80481fbaac22e9efac339fba"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\exportedtype\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "fd33365798d6de4e078d88e668c0553d"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\field\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "1a92f843192b5beb15d4486e1bd03a72"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\field\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "cbf83e8c7113edbf3379406fcb6c8e9e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\field\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "c057e5ebd6e99d4628d1b3fe4eeb6bc7"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\field\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "dabeea8174a380f827c247cc7b3c8beb"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\field\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "39cd60fcf427655544da9dd6484c9fb3"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\field\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "e76195b7396bb693f0369fa0f3006e89"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\field\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "c95f20a301adbf9de32a41c4baca11b0"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldlayout\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "86c4cfd3038fba94b7f58886564dbfb1"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldlayout\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "a659389985981069dffb2a6f5eaa5f3e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldlayout\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "06bc5ae4f437b369052838725a60c09c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldlayout\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "522dfd5cf1254ea921a58d478fe9a642"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldlayout\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "3de6ca23d264d32cc1e3a9ddf935b3bb"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldlayout\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "abe1e9f2fa8ccfb7f9e5c2cfa0e1edbf"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldlayout\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "b2a2891d0c9acda6f30039e57b0ae9d1"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldmarshal\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "2a8e6cd053e6e844f4bd90b237564871"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldmarshal\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "f0cc47dd68e3be981505b1ba788426f7"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldmarshal\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "8bb4aff0fcecae9a09b98662cf57a3a5"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldmarshal\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "e75ff6e555773c15fb686caeac192846"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldmarshal\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "e0dfc74903a34a159449909146ba4adc"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldmarshal\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "2b0ae81d77b9cf70d060ec6423b21aa0"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldmarshal\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "348568ebcaac1fb37cacaad60e5e72a9"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldptr\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "b937937395581fadece9c292ea44e320"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldptr\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "dd1f78cc6b3a024e01cf26b11197638c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldptr\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "31d134c959f9dd9f3b71148794a87c28"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldptr\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "65ff160a254a7d8fa21ee1c4cf578214"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldptr\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "5e8eb4b974aed859dc78ee0d8241dd07"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldptr\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "7cf1f8775ecb87702d5c30b3d1d8e3a9"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldptr\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "49fb85d38de1aa7c3e27ee0e5219c828"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldrva\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "12486f0034a6dadf5897f4e1040418a7"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldrva\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "6b98bbe4fa360868d72c7e219cbb811d"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldrva\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "61ac9ac04277edd22d4366ca8922ce6f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldrva\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "e15ebc56c1ec6cc308c627a6f7ba8cc6"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldrva\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "83a1ccae9f600291ed31a227b53dc20a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldrva\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "82a44ce809801a3527c9cf314c961dbd"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\fieldrva\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "5dedfce8bc7314f63892a85ad7433998"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\file\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "5c6c4e118dde41cc4bdc3bf9e653afcd"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\file\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "bd409783008c90cf5bde5fb3115939ea"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\file\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "b7b57a2bb748213c3e3d6a353df141f0"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\file\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "38130d79f9e75d5ba127c802742e15a9"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\file\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "7495c95a6c34ce6d83c1b36ce6235e19"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\file\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "571ace6f241e723c34645b373f7d6850"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\file\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "829d635a56444d9eacbaca1bf3d8a903"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\genericparam\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "6ca95c73be4400d33930d7f5cbd4e96a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\genericparam\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "327b44aad2c062b6b882ee2730228887"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\genericparam\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "580b1d130b9e6bfe866cea15ed745a3a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\genericparam\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "006073408985b783245608c4fe318dc5"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\genericparam\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "ebe587ee018969b017e1b04da9d2124d"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\genericparam\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "bf00850943372688de00880f50bc52d4"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\genericparam\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "907c0107b1ed06c34122b48cd8f96e24"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\genericparamconstraint\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "1d1aaf3d4c98240cddf64e2ad58abd46"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\genericparamconstraint\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "177d32ff6bd014f3b8d86d94aa707d99"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\genericparamconstraint\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "37b9467422434c9332534454a98cb288"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\genericparamconstraint\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "30fae80b8a8700d7efc3822520fbbc64"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\genericparamconstraint\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "e05f98046c0d9d20b0ee7b5f2e6d00a8"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\genericparamconstraint\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "6faab92ff9fede2b2ea2031dbdec2f82"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\genericparamconstraint\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "c6c68baf7aa04a2d4bf3ffc94b118693"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\implmap\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "38f23b85799d9a8cb3c00d1c037ea8ca"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\implmap\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "0ae3589357fe06d528d87bc53fcceda2"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\implmap\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "c704158d73c71fa80ae4992533a6e568"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\implmap\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "d5892a72580e94e7da1a18d63a258074"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\implmap\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "63cc9080ce33cb680bf9a605004dad0a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\implmap\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "d959dd1a1fd6197342f2cbee9e93a101"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\implmap\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "da14ec358e77cf7711a40681f0e2779a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\importscope\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "ed06fb1160fc8d2d7527ccfaa94c3374"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\importscope\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "4b2fc764b625714aa01c6948facd7b98"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\importscope\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "7e9f7fab14b2be48f4b00053efa6a79c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\importscope\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "216507653916a9fae02e34631faff79e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\importscope\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "ba132539c4aadb7a6047ace48c6dab4e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\importscope\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "532d93bbc41e05f3453f36c6f9e1c1b8"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\importscope\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "8916a5e322cf675791ce439505da3253"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\interfaceimpl\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "83436b29477ecbc3ffb5859b42aa1c8a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\interfaceimpl\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "c7225f0d945169ae0fffadf7dc567717"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\interfaceimpl\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "9283c7de7b0bafdd9fdcfdafc34c070c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\interfaceimpl\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "6b0479c3de962942a0f615a1b1c2c27d"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\interfaceimpl\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "d8924825bb7dc362b9285e2ad0344b32"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\interfaceimpl\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "4921055dfe615f89953670de136353ca"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\interfaceimpl\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "b3242bdc0b8a8787879194a6c4078190"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\localconstant\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "d8ac1ef2f269cb22c9110a330a049bfb"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\localconstant\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "1011226369250a37807e9ca09451af70"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\localconstant\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "1ade7eab5f4755da231b92a17d7d30ed"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\localconstant\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "542ae53f51476153449c229a2e7fea85"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\localconstant\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "d3e67e9088a87dafc512b71c023ff8bf"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\localconstant\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "28f9a9904eff3febaf4994596ae1da61"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\localconstant\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "b1b5542c2ad50621888b377073e39471"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\localscope\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "45c69131745d9fcd06a13e8597b21a57"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\localscope\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "bb87323652978575ae1b2ee923092313"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\localscope\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "6c285c5a0ac31fcd9cbd4520d7da8feb"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\localscope\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "d845576ba3029a0770209e1b7cb4e503"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\localscope\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "172a8d0a442808ea98e8592aa99819b9"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\localscope\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "c777e2ad13a8018a220d3372f230af88"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\localscope\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "95ce02701e6283805422a52fb5d182e1"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\localvariable\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "339cc77991c87f0a771e43bc74d2a6ca"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\localvariable\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "39ac3c2b8b87d05225101b3f018d5609"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\localvariable\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "b740e026ea9e13aea5f505b36b467a7c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\localvariable\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "d42a71e6eab18428e0776e6a68f4ac03"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\localvariable\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "3b07b65c1b6e5092ba6f832967eb867f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\localvariable\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "1762e5426dcb1008da52685f5ec0b95b"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\localvariable\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "41bc29b2b14c677474d7cf7ee079f740"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\manifestresource\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "f710a643e496237066e59649ceb222a7"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\manifestresource\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "b56a44f1541627640ff33fffbebb1cef"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\manifestresource\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "08b286e28e844c1cdb4d762251823620"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\manifestresource\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "741fcdf765b9a000474aba90b31312c1"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\manifestresource\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "1a69103d77018da6b16a50a61d5a6760"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\manifestresource\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "3de18c0152bfffb5e4ce83788d6e804d"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\manifestresource\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "4e8c56b5105b270b421b860716f45062"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\memberref\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "75a0e17fe977e0a6cc712b8a22d5a655"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\memberref\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "5f6aeb8d0a4ba4027e20730418d7b01b"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\memberref\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "a00629345b593128fef4e796d1d010eb"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\memberref\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "9fc1fc0eb64d82fb94d72ce155926b5b"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\memberref\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "c23588a4fbaa5f6e4392b81df824bf32"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\memberref\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "f535cf19a2af7a59d9d5ff279165218a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\memberref\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "4acd9cb2f71c857d0c7eb4403aab1e1f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methoddebuginformation\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "fbe21bc46796d365c95c3a02aa3a05be"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methoddebuginformation\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "1ac0995b636f6339cfe45c111e168044"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methoddebuginformation\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "4e919623a677e985eaea6ab99c059f63"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methoddebuginformation\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "b2754986403d9a590d7cb95576a4af44"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methoddebuginformation\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "b8a16d47e04d52c13caf65c2ceecba3d"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methoddebuginformation\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "1e08b18e510659708c88107ad8e3c293"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methoddebuginformation\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "dec4d3e6b1d04a2edf3719f2a925dd66"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methoddef\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "7c5f1863c4d92858268868bacc72d39e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methoddef\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "7ac99a93abf4c0e6c2df9c7285adbca2"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methoddef\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "5a82cd908076d1e927d128e2ced8ec9f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methoddef\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "d581f451e246d198db22491029b90241"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methoddef\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "e30055ab7f1afcd72b73dd8fe0226865"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methoddef\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "113a734241b8c3f4ede373cef17902cd"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodimpl\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "2d6f10047299da36a6a11787d6f2e58c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodimpl\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "429f2fd5e9ec59ac81d0931861eadb98"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodimpl\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "c84b12928c8d4d8ce0d2f7dec62d2a9e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodimpl\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "e855fb7b8b98ca7ab017c04aa38770f6"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodimpl\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "2eb478683e9cbde25053b17bfea3528b"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodimpl\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "02df5bb312ca85056686513ccf70dec1"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodimpl\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "a5ef0e95e652368edf26d08c1c79e162"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodptr\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "d0e0f9b5443b9c6c0c5cc0872706756c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodptr\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "883decccbd00ccbd0d32eee9a947cf81"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodptr\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "a527b897b5e3d75bbee742344b9f0e0a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodptr\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "6c7e6fd21d87c142c8f307be77720078"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodptr\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "46bc500d5d9fee339c2c1a43c4cd55e0"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodptr\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "acb60dcc9f00c10da2c92a10c370fbd7"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodptr\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "2a8d00bd8f027c06cacfb3528762d913"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodsemantics\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "7d90a137473a47d9899dc0b0923c537b"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodsemantics\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "dcef24ed076eb7117bfae4f1bd5c9f01"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodsemantics\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "e5b679e31a05d81b69459dc05e7cd7dc"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodsemantics\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "4a4fe413c73676748f5164c6a8ed4408"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodsemantics\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "92a1ace7a1cb55da74b8af5e7f62b6bb"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodsemantics\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "62281772c131ef7f4b667d7a83f38649"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodsemantics\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "1831f45c8c0181ab37baa6dfc53cabd9"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodspec\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "b4a20b1816b606609ce7a6601a015d65"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodspec\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "865a1241acc1f6fa58090561990e3113"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodspec\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "713cde245ea941451e72df8a3a2fef97"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodspec\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "53af851cc4ea11489d3bd372ac286dda"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodspec\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "cee824ce8d5ceacf882d28e2a4c0f365"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodspec\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "35e6ed7fba82310ac060cdb4647d5dde"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\methodspec\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "300d1067a9ea7715c693e8774ae42f98"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "1f1eb4a8e535b467d63b4e50437faca2"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\module\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "c4d115d05fea9ce9b36f9f19c0a49c5e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\module\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "36683979f57d050d5c7df5726e2505fb"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\module\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "995f6cb799bbb9dd1ac2f7a4673cd04a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\module\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "a065d1817d3878bc6820e32eacd6ea5e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\module\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "792e8fcaf5201eb94cb1d0e08e3fb488"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\module\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "e601b272591cb052e4a3aadd536237db"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\module\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "6c7b3c3a44fbafb28a043de9d28a3501"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\moduleref\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "d8a66b16b41656bde2b64c8e4eaa05a2"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\moduleref\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "ce3cd1bc9c76876a1a22c8ef77fdeadb"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\moduleref\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "8f3471f250d18c68dbab2a2cee9f6a87"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\moduleref\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "a212d05dd4d057e6b4a3893c43ba2131"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\moduleref\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "e2f3f9ed14ff19e1331e2d17e275e934"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\moduleref\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "dabeed0cfcf5b467004a038254e40569"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\moduleref\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "c46cf11ecebe9af23130d10d0162c083"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\nestedclass\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "3c09e1ee31a18d91f3f13247fb792af6"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\nestedclass\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "190fa0d82fbd91155570672803ea7e8e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\nestedclass\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "c6bb168d7396ecc6627a37dd1ddacad5"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\nestedclass\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "6d9be4fafab2901f42e525dccbd350b6"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\nestedclass\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "30ffcddfbd577d04bed8294c9ba247b8"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\nestedclass\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "98c92b58eacb652d330b25baf3d08c8b"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\nestedclass\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "148e2d1667eae7042a538e179c5381b6"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\param\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "1cdaad57656fb88e76967287cf64e373"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\param\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "059915ccf6d0ebd22f47f55e885457e6"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\param\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "edfc8a32167d013b546a3398229cdc7f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\param\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "a80d6b435f096dce14ecde4d97641adb"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\param\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "644285566fc6e285c66a5358ce3be071"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\param\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "b0ec2ef376da2b986f9e61d0f3499062"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\param\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "8399d0299b86ebe308de8efeb9ebf033"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\paramptr\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "85fb2a03012eb2b21b9263999d80a78e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\paramptr\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "f6e5fa387663dd991665d8b3b50ceb95"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\paramptr\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "0e3c3dfb8feb31ec95b97941b17a6593"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\paramptr\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "4aaf295f0d406f60f13898367ffaca51"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\paramptr\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "b2257a8bc2dc92337fd99c8c9cc9a3f5"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\paramptr\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "64fb6ac53ff57d96de18b1533da8c349"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\paramptr\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "1da955c22e3502821a5d246e1585b2f1"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\property\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "c42b949db3ea87025480f4fb16115b8f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\property\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "618f15edf6a34404d96c436c9f045b0a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\property\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "3f009db975a4b361d2cbfb955db838f5"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\property\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "29085aa3f3018866f6496b04ecb56e58"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\property\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "00a67878d76e663849de91225f071103"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\property\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "7897bf2aa44921ce283343acd885d9d2"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\property\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "fd2410c6751bb11a13ac45cc008981e1"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\propertymap\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "171554b716cd3303bfc67fa4bb81c9d4"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\propertymap\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "7e5ae7f6a696216022896955e5b01e3c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\propertymap\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "55d7c7e07f443a6fb69743fbc34dbb54"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\propertymap\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "d61578381a56a28d3b640d59dd08e2e9"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\propertymap\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "579334edfac9e2f3df559752c6ca9cf3"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\propertymap\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "6e624937d8736adedb0c8b3891ffff9d"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\propertymap\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "88d5efd58ab241f709b18cea33d30404"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\propertyptr\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "56c95e55e0c1f4b0a8b29f2971088e12"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\propertyptr\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "b2c85e7b3759d7ff2a96bdcd537058b2"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\propertyptr\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "d6f1d27741d5bc061b261d1c7b6e2d10"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\propertyptr\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "13b50595bb9d58b21c9a660aea3c2296"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\propertyptr\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "107aabe6e3e03d1656ffbd82ecaf0842"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\propertyptr\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "3329c7a0418882332c43483ad1faef0c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\propertyptr\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "1be8d8bcbaf32fcb764405be2078929b"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\standalonesig\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "a1cca75daa1343cba5db49ffd8fd08f7"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\standalonesig\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "244504685d99aa59c456f3f79ad422c4"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\standalonesig\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "daecf02f7f9361cd2469895f62f93002"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\standalonesig\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "8c3008f909043197359732b58cbdf164"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\standalonesig\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "97c0e7acdde1d1b5394f2b81944b177f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\standalonesig\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "a33fa517541ebd08ce7420a3e9381963"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\standalonesig\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "e12c7e588704ea59e7fe53c21a6ea831"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\statemachinemethod\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "5f27f68a409f2c40d81d02f4d42d6049"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\statemachinemethod\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "97516b9296320251c03d64023aa7a892"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\statemachinemethod\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "aa67b029b66a7c7931f0a8f0ccc53e0d"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\statemachinemethod\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "9d7b199017dbbb22b74b026bbfb7bc4e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\statemachinemethod\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "6614925f003de6462af8633e2af7eeea"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\statemachinemethod\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "ad42a662c421b27315b07cbb2373b81d"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\statemachinemethod\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "28385e13d73609469e2f8921d9e752cd"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\typedef\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "132b2fdaad80d2ee312e9ffc5006e1e8"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\typedef\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "982b9b0fe1b42d5b2ba6333e9f67be0c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\typedef\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "c558591f60d79b437eb9a2d099906dcc"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\typedef\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "e4c053b6ebbd9a0a8b4822e0d858f49c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\typedef\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "55d19d064a750d52706fb2b990be67f1"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\typedef\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "161d47994c8d93957e75cceb4ce976f8"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\typeref\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "d130ab739a4e9357f106761855ce6f4a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\typeref\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "9088257263a0fee844d14691008516e2"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\typeref\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "c0b32c5d634a9b30a4891271ea198894"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\typeref\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "78df6d338f95f927ac01af8912d3e0e3"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\typeref\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "841ba75cdf867ffa1ef621059751cb24"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\typeref\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "5c8e67d3dd70f2d007d885282e955cc2"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\types\\common\\codedindex.rs": {
+    "mtime": 1773148197000,
+    "hash": "309e2ed697ebc240a2a02edfdf5af06b"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\types\\common\\id.rs": {
+    "mtime": 1773148197000,
+    "hash": "6d185aa42c75e763b19abd740f77b0ca"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\types\\common\\info.rs": {
+    "mtime": 1773148197000,
+    "hash": "fe472fe84c763f1a0db1d23af94a2969"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\types\\common\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "4df66215d2c96d59d822167228b5078a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\types\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "c75c6519a2d3c4566351af3b321fe90e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\types\\read\\access.rs": {
+    "mtime": 1773148197000,
+    "hash": "f35283274331eb26de2fe84914625ae4"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\types\\read\\data.rs": {
+    "mtime": 1773148197000,
+    "hash": "546a54d0ffbe90e7977393192164f8a1"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\types\\read\\iter.rs": {
+    "mtime": 1773148197000,
+    "hash": "2698b7b77893948f0020e5d393206200"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\types\\read\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "ce8ca35a945d9245d40b2f2b4a1ff1f6"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\types\\read\\table.rs": {
+    "mtime": 1773148197000,
+    "hash": "9b1b4db218ce23ce4fb53a5ce92a64e5"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\types\\read\\traits.rs": {
+    "mtime": 1773148197000,
+    "hash": "497d0c183b0bf80515582df96f812789"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\types\\write\\data.rs": {
+    "mtime": 1773148197000,
+    "hash": "0e2739a8bc03dc94c81005229d9d6ee7"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\types\\write\\header.rs": {
+    "mtime": 1773148197000,
+    "hash": "a5a1775908e7e44c1e0357ad718124ab"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\types\\write\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "be34422d1cbaa24c8cc9f71025492e28"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\types\\write\\table.rs": {
+    "mtime": 1773148197000,
+    "hash": "dc01f871a41cefdf9d876ddd70f2ba2e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\types\\write\\traits.rs": {
+    "mtime": 1773148197000,
+    "hash": "06d0c88a522359fba9e47b4102c06feb"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\typespec\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "6d7254fc864b75e9b87706613e901d04"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\typespec\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "c6096783ff182d0ee1022657be67ac38"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\typespec\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "b28b97b4b52aa5d871c4ad8585a6b872"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\typespec\\owned.rs": {
+    "mtime": 1773148197000,
+    "hash": "90cd7312fe20876cc65fec3399cf7ace"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\typespec\\raw.rs": {
+    "mtime": 1773148197000,
+    "hash": "00cd56c4bd62af9a8fe88f9121cd5a9e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\typespec\\reader.rs": {
+    "mtime": 1773148197000,
+    "hash": "d570c60d42ac24991bff117d36f39f83"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\tables\\typespec\\writer.rs": {
+    "mtime": 1773148197000,
+    "hash": "8747a2e3ee7b9076199bede44e9c3466"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\typesystem\\base.rs": {
+    "mtime": 1773148197000,
+    "hash": "8e995cde11476b0cc95e67cb9c1ac6a0"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\typesystem\\builder.rs": {
+    "mtime": 1773148197000,
+    "hash": "d0e96c88778e9ef1a2d7baaea820f81f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\typesystem\\encoder.rs": {
+    "mtime": 1773148197000,
+    "hash": "08d369bef276ea78c0867a1ff04272d2"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\typesystem\\hash.rs": {
+    "mtime": 1773148197000,
+    "hash": "09104190bad34be9ae55937e870f687d"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\typesystem\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "f2e9d5abd1605369aaff380d3262390f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\typesystem\\primitives.rs": {
+    "mtime": 1773148197000,
+    "hash": "4846ee0086b76e089cad834d6eafd219"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\typesystem\\registry.rs": {
+    "mtime": 1773148197000,
+    "hash": "790a0bf91f3e5cca920c63bf3df6a293"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\typesystem\\resolver.rs": {
+    "mtime": 1773148197000,
+    "hash": "18f4d001277a5c88ceb5510e7760231f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\config.rs": {
+    "mtime": 1773148197000,
+    "hash": "7dd32d3e326dd01ccbe0301b4d01460e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\context.rs": {
+    "mtime": 1773148197000,
+    "hash": "9f64a042675ab440908518b1c35259e3"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\engine.rs": {
+    "mtime": 1773148197000,
+    "hash": "4697e22b13a26c2cd2d6562d0a13553e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "0ea3c719c0d691afca56e2232ec3d8c5"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\result.rs": {
+    "mtime": 1773148197000,
+    "hash": "924ddfac718376bfa70408acb31850f3"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\scanner.rs": {
+    "mtime": 1773148197000,
+    "hash": "dabb8a0b01e84a72ad589a8889ddd539"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\shared\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "b3a322c52cb00302bccb5482ba46cfaf"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\shared\\references.rs": {
+    "mtime": 1773148197000,
+    "hash": "43d4c4cd7b1809bf874cb4a3d09afc32"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\shared\\schema.rs": {
+    "mtime": 1773148197000,
+    "hash": "1d7453d97ca2dfd7746bec981d833d65"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\traits.rs": {
+    "mtime": 1773148197000,
+    "hash": "9ff7b888d0200a15d0c22e7264a4a10b"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "4eebd814bfc95b82e92d46cb77f96a1b"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\owned\\constraints\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "7f67a1ef0405a37ba18659df98f8238f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\owned\\constraints\\types.rs": {
+    "mtime": 1773148197000,
+    "hash": "b9a6698f1078ad9347033f4631176531"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\owned\\members\\accessibility.rs": {
+    "mtime": 1773148197000,
+    "hash": "3d6bf8fea1b34702657ab6903d0f666a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\owned\\members\\field.rs": {
+    "mtime": 1773148197000,
+    "hash": "476864ef8d64afc384e0aa4399570fa5"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\owned\\members\\method.rs": {
+    "mtime": 1773148197000,
+    "hash": "0ee036fa77878b526ab6dbe454e51ef7"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\owned\\members\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "cc1d27348b01da0ea5d90c2b13e25268"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\owned\\metadata\\attribute.rs": {
+    "mtime": 1773148197000,
+    "hash": "b60d35600064a28f4142f3e199f44233"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\owned\\metadata\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "21ce8148142b75e4f36b156469a8a96f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\owned\\metadata\\signature.rs": {
+    "mtime": 1773148197000,
+    "hash": "ab891e7c2812d9351efc8b9526ce336b"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\owned\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "55a4de5f8229a2dbf0de8ed751620f6a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\owned\\relationships\\circularity.rs": {
+    "mtime": 1773148197000,
+    "hash": "8f051c0d84a9246efbac3a9184e0a666"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\owned\\relationships\\dependency.rs": {
+    "mtime": 1773148197000,
+    "hash": "8948f3837cf202a996406d7923359757"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\owned\\relationships\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "b2843a171eb8736bcba579cb7115bf6d"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\owned\\relationships\\ownership.rs": {
+    "mtime": 1773148197000,
+    "hash": "d7f5cb1eb4d0a1bee0f578fb9bab4eae"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\owned\\system\\assembly.rs": {
+    "mtime": 1773148197000,
+    "hash": "f5e450ccc990694e742b06a131b9bd6d"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\owned\\system\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "7576a6f6b9be3e4a51bfd6b9ac7e6ae7"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\owned\\system\\security.rs": {
+    "mtime": 1773148197000,
+    "hash": "0b6c2642c907c78bceb3ff3406a006f6"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\owned\\types\\circularity.rs": {
+    "mtime": 1773148197000,
+    "hash": "d8b6d3c8122d2adf6f983b2d30eb6081"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\owned\\types\\definition.rs": {
+    "mtime": 1773148197000,
+    "hash": "09314fc2965f423101ef5f9b970d4820"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\owned\\types\\dependency.rs": {
+    "mtime": 1773148197000,
+    "hash": "37a9f73b443c7b517c34e7d380f40ab7"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\owned\\types\\inheritance.rs": {
+    "mtime": 1773148197000,
+    "hash": "481b27ef625dd2307eceb366450c646f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\owned\\types\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "b4349c4262ce39fc1a6b4840101d4966"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\owned\\types\\ownership.rs": {
+    "mtime": 1773148197000,
+    "hash": "1b6e420274d03d7f0179d931a1c7f207"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\raw\\constraints\\generic.rs": {
+    "mtime": 1773148197000,
+    "hash": "febb8491caa5bbc3d90e5076d394366d"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\raw\\constraints\\layout.rs": {
+    "mtime": 1773148197000,
+    "hash": "8f3bcc22b0ae536a33281c87f7750581"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\raw\\constraints\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "e135eca7b27d89a9a8718e6ec3b907bf"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\raw\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "0b566f9ce48c343819775561c9fcb627"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\raw\\modification\\integrity.rs": {
+    "mtime": 1773148197000,
+    "hash": "5c2fe8b7a6326c31c5b4d08accd4ac05"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\raw\\modification\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "9618f35caa4fe215aeac14ee9e5780eb"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\raw\\modification\\operation.rs": {
+    "mtime": 1773148197000,
+    "hash": "10d9a1f5992498ebeb002d2aaa270b36"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\raw\\structure\\heap.rs": {
+    "mtime": 1773148197000,
+    "hash": "ea5f6aaf1937e8e1f118c314ce39f1b5"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\raw\\structure\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "aca3f146082ba4848a718162890d7b64"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\raw\\structure\\signature.rs": {
+    "mtime": 1773148197000,
+    "hash": "425b5f36e56f42c4bd54e6ebbc6545dc"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\metadata\\validation\\validators\\raw\\structure\\table.rs": {
+    "mtime": 1773148197000,
+    "hash": "8e0c6747e788111dc87a32db820d2261"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\prelude.rs": {
+    "mtime": 1773148197000,
+    "hash": "25a840ac852c767e5a74e0fc5ce63711"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\project\\context.rs": {
+    "mtime": 1773148197000,
+    "hash": "7fd0ccd801aca243152413971b41ca8f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\project\\loader.rs": {
+    "mtime": 1773148197000,
+    "hash": "5baaae8cd879041cb594a7aa3dd65991"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\project\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "fb9d7604ca3dc1aeef3b474b52a23783"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\project\\result.rs": {
+    "mtime": 1773148197000,
+    "hash": "38535e8fd9766081f7807acd8f596603"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\builders\\assembly.rs": {
+    "mtime": 1773148197000,
+    "hash": "ac7962a513d6714bbccacc126a9d043e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\builders\\attributes.rs": {
+    "mtime": 1773148197000,
+    "hash": "8583d89883557cc4a6257166a026ba01"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\builders\\constants.rs": {
+    "mtime": 1773148197000,
+    "hash": "5b93b9c0062791b2594da4db29818969"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\builders\\fields.rs": {
+    "mtime": 1773148197000,
+    "hash": "5e3422d8bd3b01b40fe41be11ca0e034"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\builders\\files.rs": {
+    "mtime": 1773148197000,
+    "hash": "f34b6ecb4a512fd8883c9652b150c8b8"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\builders\\generics.rs": {
+    "mtime": 1773148197000,
+    "hash": "9b35bc5603c2c30dc1cc515e23315848"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\builders\\methods.rs": {
+    "mtime": 1773148197000,
+    "hash": "6f2821776dd343cab733754d0509ac97"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\builders\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "d634d0d3a9b7757a7aef2217c539a6e6"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\builders\\params.rs": {
+    "mtime": 1773148197000,
+    "hash": "329f45997b1eede5fe2ee810ea3d1c6d"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\builders\\properties.rs": {
+    "mtime": 1773148197000,
+    "hash": "a6bfa6183cee107e93eea38eb154ca52"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\builders\\signatures.rs": {
+    "mtime": 1773148197000,
+    "hash": "93d69b9224c3ba119dc6b17673354d1c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\builders\\types.rs": {
+    "mtime": 1773148197000,
+    "hash": "261cccd6a6255665543517ee83ce5b5d"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\crafted2.rs": {
+    "mtime": 1773148197000,
+    "hash": "e6fa306f97bcb8627dfb24d6d10c4890"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\general\\disassembler.rs": {
+    "mtime": 1773148197000,
+    "hash": "dbdf41effc4c66de335532ef7d14b070"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\general\\file.rs": {
+    "mtime": 1773148197000,
+    "hash": "85f09fbc50c962cbcab544099e32c65a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\general\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "429b972d11b12ce1723693c5cccfb86e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\metadata\\cilassemblyview.rs": {
+    "mtime": 1773148197000,
+    "hash": "1a951cb57e363516b20650ff38770ee1"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\metadata\\customattributes.rs": {
+    "mtime": 1773148197000,
+    "hash": "eefe8db5f5ddf74b39021b592f2dc306"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\metadata\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "0e4b85ed1523974f69f95bf44380f894"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "2f655df7305bd90ff65ea142d9237116"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\table\\assemblyref.rs": {
+    "mtime": 1773148197000,
+    "hash": "c0b2007c63a206fc430945610d80074f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\table\\cilassembly.rs": {
+    "mtime": 1773148197000,
+    "hash": "3bdf3ca9534f657e423f5c09110344d9"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\table\\constant.rs": {
+    "mtime": 1773148197000,
+    "hash": "432ec0e61e32e710c1d67ca05ddbb554"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\table\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "8d7c1d748203c30ba7904eaebe1dcfbf"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\validation\\attribute.rs": {
+    "mtime": 1773148197000,
+    "hash": "9b6902069df382242817a4568fb420a8"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\validation\\circularity.rs": {
+    "mtime": 1773148197000,
+    "hash": "c3771cef96e00120130cb3926efa67a4"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\validation\\constraints_types.rs": {
+    "mtime": 1773148197000,
+    "hash": "b3613c0dffeed71f450ca1d64c0c7149"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\validation\\dependency.rs": {
+    "mtime": 1773148197000,
+    "hash": "89990525ed8ab30e1b91d5346154056f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\validation\\inheritance.rs": {
+    "mtime": 1773148197000,
+    "hash": "bfa76e558552d5bdf57290c8ccc05364"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\validation\\members_accessibility.rs": {
+    "mtime": 1773148197000,
+    "hash": "cecb97bc23216d45d38c4963ad1212c9"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\validation\\members_field.rs": {
+    "mtime": 1773148197000,
+    "hash": "a4d00395072ec1ea917a9de18eca0df4"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\validation\\members_method.rs": {
+    "mtime": 1773148197000,
+    "hash": "d6b709314d2a154a1028cacc7f203235"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\validation\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "4d7d27f6c97a4df334e951dad79c824c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\validation\\ownership.rs": {
+    "mtime": 1773148197000,
+    "hash": "ee9b66fbd6d465dbe7079af99249ef98"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\validation\\raw_constraints_generic.rs": {
+    "mtime": 1773148197000,
+    "hash": "ed3679a5087c74592fe8ad36c2e99fe9"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\validation\\raw_constraints_layout.rs": {
+    "mtime": 1773148197000,
+    "hash": "c3acb10ad234ffd67ee4a6c7b104bc91"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\validation\\raw_modification_integrity.rs": {
+    "mtime": 1773148197000,
+    "hash": "086a10fcac958f1575d3baa19cef120e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\validation\\raw_modification_operation.rs": {
+    "mtime": 1773148197000,
+    "hash": "73faeee2e3c0b5bef6e0a5338257ae98"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\validation\\raw_structure_heap.rs": {
+    "mtime": 1773148197000,
+    "hash": "589165fc5ee10a1ed5b4a95e7e68a163"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\validation\\raw_structure_signature.rs": {
+    "mtime": 1773148197000,
+    "hash": "505e9adf43423a5b46aa12e53dd2e44a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\validation\\raw_structure_table.rs": {
+    "mtime": 1773148197000,
+    "hash": "98a8a3493a0a7c8c8d272acd328a1fbe"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\validation\\signature.rs": {
+    "mtime": 1773148197000,
+    "hash": "d62e9e43751bbd9dcc5afa2a751d43c7"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\validation\\system_assembly.rs": {
+    "mtime": 1773148197000,
+    "hash": "956d4a17cf06993b97da33d828b2e59a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\validation\\system_security.rs": {
+    "mtime": 1773148197000,
+    "hash": "7bb5fe9e00828baa768ac2d4f720bfbb"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\validation\\type_circularity.rs": {
+    "mtime": 1773148197000,
+    "hash": "d56ca43d1eabc16e3468057ac89087a6"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\validation\\type_definition.rs": {
+    "mtime": 1773148197000,
+    "hash": "91739ab9331b7a104d6d9929a9e0518c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\validation\\type_dependency.rs": {
+    "mtime": 1773148197000,
+    "hash": "3758e7788578445dd11b475783d62802"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\factories\\validation\\type_ownership.rs": {
+    "mtime": 1773148197000,
+    "hash": "5cea624ab3fad5e2d9819f55fa864327"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\helpers\\dependencies.rs": {
+    "mtime": 1773148197000,
+    "hash": "0fd6a799a3ba22d55d37b7b486e1dc19"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\helpers\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "b5a0549c6bae94e0a8dda15f3e859bff"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "a392d65f1082856f1a5c488bc96f8f99"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\mono\\capabilities.rs": {
+    "mtime": 1773148197000,
+    "hash": "2aca2ce7b542d7c9bcef6a72cd9f9b64"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\mono\\compilation.rs": {
+    "mtime": 1773148197000,
+    "hash": "8f9151ea51afbdaa15becf758112bf0c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\mono\\disassembly.rs": {
+    "mtime": 1773148197000,
+    "hash": "d5958472b85d80e4e92805b9c24a0736"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\mono\\execution.rs": {
+    "mtime": 1773148197000,
+    "hash": "ea54b0163bc71c06cb84456ee3e87141"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\mono\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "a0cbcfab4facea9c19489dd3a345d03e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\mono\\reflection.rs": {
+    "mtime": 1773148197000,
+    "hash": "678140e9a91b0b5111cabcbff08ef53c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\mono\\runner.rs": {
+    "mtime": 1773148197000,
+    "hash": "93069d89fd1a78d40247028c6315b8e9"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\scenarios\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "41aaf69b8cba9f8361465286de93b16f"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\validator.rs": {
+    "mtime": 1773148197000,
+    "hash": "a11ca2a2ebdb7107e5c468a9cb92fbba"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\test\\windowsbase.rs": {
+    "mtime": 1773148197000,
+    "hash": "e234e8a8bc80e9590d8c17c9b26e4988"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\utils\\alignment.rs": {
+    "mtime": 1773148197000,
+    "hash": "e1743d2c1d78bc03ec7f6af7172c9a17"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\utils\\compression.rs": {
+    "mtime": 1773148197000,
+    "hash": "1204caae8183a1497e6a06cc3007f532"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\utils\\enums.rs": {
+    "mtime": 1773148197000,
+    "hash": "082906068f2b2e8849f3fcee96f7d8a6"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\utils\\heap_calc.rs": {
+    "mtime": 1773148197000,
+    "hash": "65c2a4da4a1c360a83f9dc91954eb55b"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\utils\\io.rs": {
+    "mtime": 1773148197000,
+    "hash": "20a0737fe49bfc10f9eef1fdb306713b"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\utils\\mod.rs": {
+    "mtime": 1773148197000,
+    "hash": "2db8607936e50fbfb60ab905949218f9"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\src\\utils\\synchronization.rs": {
+    "mtime": 1773148197000,
+    "hash": "ce4cfc6510145e285ce16ebe24d0b5b6"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\tests\\builders.rs": {
+    "mtime": 1773148198000,
+    "hash": "eb9754157a49effec6b4b59e104f6393"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\tests\\crafted_1.rs": {
+    "mtime": 1773148198000,
+    "hash": "f39debb29e175ac049f15c2e1632746a"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\tests\\fuzzer.rs": {
+    "mtime": 1773148198000,
+    "hash": "f2edf050266125ac6f5ac55491a02d03"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\tests\\modify_add.rs": {
+    "mtime": 1773148198000,
+    "hash": "a87327e1c07f66885b2d0879d44484c5"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\tests\\modify_basic.rs": {
+    "mtime": 1773148198000,
+    "hash": "4b75a89d9bc9dd18a68615669cf29887"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\tests\\modify_heaps.rs": {
+    "mtime": 1773148198000,
+    "hash": "04ee920dc4c07b3fd177c0380160bbba"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\tests\\modify_impexp.rs": {
+    "mtime": 1773148198000,
+    "hash": "44d60b0077306e9907707c61baed5c14"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\tests\\modify_roundtrips_crafted2.rs": {
+    "mtime": 1773148198000,
+    "hash": "a320d5c5a64c96cfeb91bd0b9aefeeac"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\tests\\modify_roundtrips_method.rs": {
+    "mtime": 1773148198000,
+    "hash": "2efe73484b1a299785d32987005738c3"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\tests\\modify_roundtrips_wbdll.rs": {
+    "mtime": 1773148198000,
+    "hash": "cc5f6f905389e94a4953c56fdb0d928c"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\tests\\mono.rs": {
+    "mtime": 1773148198000,
+    "hash": "125ec82d155b947cdca8537456e77f4e"
+  },
+  "C:\\Users\\yeti-sec\\Desktop\\capa-rs\\crates\\dotscope\\tests\\roundtrip_asm.rs": {
+    "mtime": 1773148198000,
+    "hash": "7e7c646c997162fe785cbaae81bf01ce"
+  }
+}

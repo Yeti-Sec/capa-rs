@@ -1,0 +1,35 @@
+[package]
+name = "capa-backend"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Binary analysis backend for capa-rs"
+
+[dependencies]
+capa-core = { workspace = true }
+goblin = { workspace = true }
+iced-x86 = { workspace = true }
+capstone = { workspace = true }
+thiserror = { workspace = true }
+log = { workspace = true }
+memchr = { workspace = true }
+aho-corasick = { workspace = true }
+regex = { workspace = true }
+
+# Hashing
+md-5 = { workspace = true }
+sha1 = { workspace = true }
+sha2 = { workspace = true }
+
+# dotscope for .NET CIL analysis (pure Rust)
+dotscope = { version = "0.6", optional = true }
+
+# IDA Pro backend via idalib-rs (requires IDA Pro 9.x installed with a valid license).
+idalib = { git = "https://github.com/Yeti-Sec/idalib.git", branch = "master", optional = true }
+
+[features]
+default = []  # Uses blazingly fast iced disassembler by default
+# .NET analysis via dotscope
+dotnet = ["dotscope"]
+# IDA Pro backend via idalib-rs (requires IDA Pro + idalib license)
+ida-backend = ["dep:idalib"]
