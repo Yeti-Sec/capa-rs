@@ -58,7 +58,7 @@ chrono = { version = "0.4", features = ["serde"] }
 
 # Protobuf
 prost = "0.13"
-prost-reflect = { version = "0.14", features = ["text-format"] }
+prost-reflect = { version = "0.16", features = ["text-format"] }
 prost-types = "0.13"
 
 # Internal crates
