@@ -57,7 +57,7 @@ colored = "2.1"
 chrono = { version = "0.4", features = ["serde"] }
 
 # Protobuf
-prost = "0.13"
+prost = "0.14"
 prost-reflect = { version = "0.14", features = ["text-format"] }
 prost-types = "0.13"
 
