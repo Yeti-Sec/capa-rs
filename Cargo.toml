@@ -59,7 +59,7 @@ chrono = { version = "0.4", features = ["serde"] }
 # Protobuf
 prost = "0.13"
 prost-reflect = { version = "0.14", features = ["text-format"] }
-prost-types = "0.13"
+prost-types = "0.14"
 
 # Internal crates
 capa-core = { path = "crates/capa-core" }
