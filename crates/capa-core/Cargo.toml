@@ -22,7 +22,7 @@ dashmap = { workspace = true }
 chrono = { workspace = true }
 
 [build-dependencies]
-prost-build = "0.13"
+prost-build = "0.14"
 
 [dev-dependencies]
 env_logger = { workspace = true }
