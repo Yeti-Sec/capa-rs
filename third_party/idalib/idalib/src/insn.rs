@@ -1,0 +1,356 @@
+use std::mem;
+
+use bitflags::bitflags;
+
+use crate::ffi::insn::insn_t;
+use crate::ffi::insn::{
+    idalib_generate_disasm_line, idalib_print_insn_mnem, idalib_print_operand,
+};
+use crate::ffi::insn::op::*;
+use crate::ffi::util::{is_basic_block_end, is_call_insn, is_indirect_jump_insn, is_ret_insn};
+
+pub use crate::ffi::insn::{arm, mips, x86};
+
+use crate::Address;
+
+pub type Register = u16;
+pub type Phrase = u16;
+
+#[derive(Clone, Copy)]
+#[repr(transparent)]
+pub struct Insn {
+    inner: insn_t,
+}
+
+#[derive(Clone, Copy)]
+#[repr(transparent)]
+pub struct Operand {
+    inner: op_t,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum OperandType {
+    // Void -- we exclude it during creation
+    Reg,
+    Mem,
+    Phrase,
+    Displ,
+    Imm,
+    Far,
+    Near,
+    IdpSpec0,
+    IdpSpec1,
+    IdpSpec2,
+    IdpSpec3,
+    IdpSpec4,
+    IdpSpec5,
+    Other(u8),
+}
+
+impl OperandType {
+    #[expect(
+        non_upper_case_globals,
+        reason = "the o_* constants come from the SDK and keep their C names"
+    )]
+    fn from_raw(raw: u8) -> Self {
+        match raw {
+            o_reg => Self::Reg,
+            o_mem => Self::Mem,
+            o_phrase => Self::Phrase,
+            o_displ => Self::Displ,
+            o_imm => Self::Imm,
+            o_far => Self::Far,
+            o_near => Self::Near,
+            o_idpspec0 => Self::IdpSpec0,
+            o_idpspec1 => Self::IdpSpec1,
+            o_idpspec2 => Self::IdpSpec2,
+            o_idpspec3 => Self::IdpSpec3,
+            o_idpspec4 => Self::IdpSpec4,
+            o_idpspec5 => Self::IdpSpec5,
+            other => Self::Other(other),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(u8)]
+pub enum OperandDataType {
+    Byte = dt_byte as _,
+    Word = dt_word as _,
+    DWord = dt_dword as _,
+    Float = dt_float as _,
+    Double = dt_double as _,
+    TByte = dt_tbyte as _,
+    PackReal = dt_packreal as _,
+    QWord = dt_qword as _,
+    Byte16 = dt_byte16 as _,
+    Code = dt_code as _,
+    Void = dt_void as _,
+    FWord = dt_fword as _,
+    Bitfield = dt_bitfild as _,
+    String = dt_string as _,
+    Unicode = dt_unicode as _,
+    LongDouble = dt_ldbl as _,
+    Byte32 = dt_byte32 as _,
+    Byte64 = dt_byte64 as _,
+    Half = dt_half as _,
+}
+
+bitflags! {
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct OperandFlags: u8 {
+        const NO_BASE_DISP = OF_NO_BASE_DISP as _;
+        const OUTER_DISP = OF_OUTER_DISP as _;
+        const NUMBER = OF_NUMBER as _;
+        const SHOW = OF_SHOW as _;
+    }
+}
+
+bitflags! {
+    #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct IsReturnFlags: u8 {
+        const EXTENDED = IRI_EXTENDED as _;
+        const RET_LITERALLY = IRI_RET_LITERALLY as _;
+        const SKIP_RETTARGET = IRI_SKIP_RETTARGET as _;
+        const STRICT = IRI_STRICT as _;
+    }
+}
+
+pub type InsnType = u16;
+const _: [InsnType; 3] = [arm::ARM_null, mips::MIPS_null, x86::NN_null];
+
+impl Insn {
+    pub(crate) fn from_repr(inner: insn_t) -> Self {
+        Self { inner }
+    }
+
+    pub fn address(&self) -> Address {
+        self.inner.ea
+    }
+
+    pub fn itype(&self) -> InsnType {
+        self.inner.itype as _
+    }
+
+    pub fn mnemonic(&self) -> Option<String> {
+        let s = unsafe { idalib_print_insn_mnem(self.address().into()) };
+
+        if s.is_empty() { None } else { Some(s) }
+    }
+
+    pub fn operand(&self, n: usize) -> Option<Operand> {
+        let op = self.inner.ops.get(n)?;
+
+        if op.type_ != o_void {
+            Some(Operand { inner: *op })
+        } else {
+            None
+        }
+    }
+
+    pub fn operand_count(&self) -> usize {
+        self.inner
+            .ops
+            .iter()
+            .position(|op| op.type_ == o_void)
+            .unwrap_or(self.inner.ops.len())
+    }
+
+    pub fn len(&self) -> usize {
+        self.inner.size as _
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+
+    pub fn is_basic_block_end(&self, call_stops_block: bool) -> bool {
+        unsafe { is_basic_block_end(&self.inner, call_stops_block) }
+    }
+
+    pub fn is_call(&self) -> bool {
+        unsafe { is_call_insn(&self.inner) }
+    }
+
+    pub fn is_indirect_jump(&self) -> bool {
+        unsafe { is_indirect_jump_insn(&self.inner) }
+    }
+
+    pub fn is_ret(&self) -> bool {
+        self.is_ret_with(IsReturnFlags::STRICT)
+    }
+
+    pub fn is_ret_with(&self, iri: IsReturnFlags) -> bool {
+        unsafe { is_ret_insn(&self.inner, iri.bits()) }
+    }
+
+    /// Generate the full disassembly line for this instruction.
+    pub fn disasm_line(&self, gen_flags: i32) -> String {
+        unsafe { idalib_generate_disasm_line(self.inner.ea.into(), gen_flags.into()) }
+    }
+
+    /// Print a single operand of this instruction by index (0-based).
+    pub fn print_operand(&self, n: usize) -> Option<String> {
+        let s = unsafe { idalib_print_operand(self.inner.ea.into(), (n as i32).into()) };
+        if s.is_empty() { None } else { Some(s) }
+    }
+
+    /// Get the segment register prefix number for this instruction (e.g., R_fs=33, R_gs=34).
+    pub fn segpref(&self) -> Option<i32> {
+        Some(i32::from(self.inner.segpref as u8))
+    }
+}
+
+impl Operand {
+    pub fn flags(&self) -> OperandFlags {
+        OperandFlags::from_bits_retain(self.inner.flags)
+    }
+
+    pub fn offb(&self) -> i8 {
+        self.inner.offb as _
+    }
+
+    pub fn offo(&self) -> i8 {
+        self.inner.offo as _
+    }
+
+    pub fn n(&self) -> usize {
+        self.inner.n as _
+    }
+
+    pub fn number(&self) -> usize {
+        self.n()
+    }
+
+    pub fn type_(&self) -> OperandType {
+        OperandType::from_raw(self.inner.type_)
+    }
+
+    pub fn dtype(&self) -> OperandDataType {
+        unsafe { mem::transmute(self.inner.dtype) }
+    }
+
+    pub fn reg(&self) -> Option<Register> {
+        if self.is_processor_specific() || self.type_() == OperandType::Reg {
+            Some(unsafe { self.inner.__bindgen_anon_1.reg })
+        } else {
+            None
+        }
+    }
+
+    pub fn register(&self) -> Option<Register> {
+        self.reg()
+    }
+
+    pub fn phrase(&self) -> Option<Phrase> {
+        if self.is_processor_specific()
+            || matches!(self.type_(), OperandType::Phrase | OperandType::Displ)
+        {
+            Some(unsafe { self.inner.__bindgen_anon_1.phrase })
+        } else {
+            None
+        }
+    }
+
+    pub fn value(&self) -> Option<u64> {
+        if self.is_processor_specific() || self.type_() == OperandType::Imm {
+            Some(unsafe { self.inner.__bindgen_anon_2.value })
+        } else {
+            None
+        }
+    }
+
+    pub fn outer_displacement(&self) -> Option<u64> {
+        if self.flags().contains(OperandFlags::OUTER_DISP) {
+            Some(unsafe { self.inner.__bindgen_anon_2.value })
+        } else {
+            None
+        }
+    }
+
+    pub fn address(&self) -> Option<Address> {
+        self.addr()
+    }
+
+    pub fn addr(&self) -> Option<Address> {
+        if self.is_processor_specific()
+            || matches!(
+                self.type_(),
+                OperandType::Mem | OperandType::Displ | OperandType::Far | OperandType::Near
+            )
+        {
+            Some(unsafe { self.inner.__bindgen_anon_3.addr })
+        } else {
+            None
+        }
+    }
+
+    pub fn processor_specific(&self) -> Option<u64> {
+        if self.is_processor_specific() {
+            Some(unsafe { self.inner.__bindgen_anon_4.specval })
+        } else {
+            None
+        }
+    }
+
+    pub fn processor_specific_low(&self) -> Option<u16> {
+        if self.is_processor_specific() {
+            Some(unsafe { self.inner.__bindgen_anon_4.specval_shorts.low })
+        } else {
+            None
+        }
+    }
+
+    pub fn processor_specific_high(&self) -> Option<u16> {
+        if self.is_processor_specific() {
+            Some(unsafe { self.inner.__bindgen_anon_4.specval_shorts.high })
+        } else {
+            None
+        }
+    }
+
+    pub fn processor_specific_flag1(&self) -> Option<i8> {
+        if self.is_processor_specific() {
+            Some(self.inner.specflag1 as _)
+        } else {
+            None
+        }
+    }
+
+    pub fn processor_specific_flag2(&self) -> Option<i8> {
+        if self.is_processor_specific() {
+            Some(self.inner.specflag2 as _)
+        } else {
+            None
+        }
+    }
+
+    pub fn processor_specific_flag3(&self) -> Option<i8> {
+        if self.is_processor_specific() {
+            Some(self.inner.specflag3 as _)
+        } else {
+            None
+        }
+    }
+
+    pub fn processor_specific_flag4(&self) -> Option<i8> {
+        if self.is_processor_specific() {
+            Some(self.inner.specflag4 as _)
+        } else {
+            None
+        }
+    }
+
+    pub fn is_processor_specific(&self) -> bool {
+        matches!(
+            self.type_(),
+            OperandType::IdpSpec0
+                | OperandType::IdpSpec1
+                | OperandType::IdpSpec2
+                | OperandType::IdpSpec3
+                | OperandType::IdpSpec4
+                | OperandType::IdpSpec5
+                | OperandType::Other(_)
+        )
+    }
+}

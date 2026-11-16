@@ -1,0 +1,17 @@
+# Vendored idalib workspace — see PROVENANCE.md.
+#
+# This is a self-contained `[workspace]` so its crates resolve their internal
+# `../` path-deps against each other and do NOT walk up into the parent floss-rs
+# package. floss-rs consumes it via `idalib = { path = "third_party/idalib/idalib" }`.
+#
+# Only the crates in floss-rs's `ida-backend` dependency closure are vendored;
+# the upstream fork's `test-ida`, `examples/*`, and `idalib-pure-tests` (which
+# link a real IDA install) are intentionally omitted.
+[workspace]
+members = [
+  "idalib",
+  "idalib-build",
+  "idalib-macros",
+  "idalib-sys",
+]
+resolver = "2"

@@ -5,6 +5,9 @@ members = [
     "crates/capa-backend",
     "crates/capa-cli",
 ]
+exclude = [
+    "third_party/idalib",
+]
 
 [workspace.package]
 version = "0.1.0"

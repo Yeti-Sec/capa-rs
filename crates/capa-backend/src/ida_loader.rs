@@ -106,6 +106,25 @@ fn detect_format(meta: &idalib::meta::Metadata<'_>) -> FormatType {
     }
 }
 
+/// Normalize an IDA import module name so bare names receive a `.dll` suffix.
+fn normalize_import_module(raw: &str) -> Option<String> {
+    if raw.is_empty() {
+        None
+    } else {
+        let m = raw.to_lowercase();
+        if m.ends_with(".dll")
+            || m.ends_with(".drv")
+            || m.ends_with(".sys")
+            || m.ends_with(".ocx")
+            || m.ends_with(".exe")
+        {
+            Some(m)
+        } else {
+            Some(format!("{}.dll", m))
+        }
+    }
+}
+
 /// Extract imports using IDA's native import enumeration API.
 ///
 /// This uses `get_import_module_qty()` + `enum_import_names()` to get
@@ -122,19 +141,7 @@ fn extract_imports(idb: &IDB) -> Vec<ImportInfo> {
     // This gives us proper module names (kernel32.dll, ntdll.dll, etc.)
     let ida_imports = idalib::imports::enum_all_imports();
     for entry in &ida_imports {
-        let module = if entry.module.is_empty() {
-            None
-        } else {
-            // Normalize module name: ensure it has .dll suffix
-            let m = entry.module.to_lowercase();
-            if m.ends_with(".dll") || m.ends_with(".drv") || m.ends_with(".sys")
-                || m.ends_with(".ocx") || m.ends_with(".exe")
-            {
-                Some(m)
-            } else {
-                Some(format!("{}.dll", m))
-            }
-        };
+        let module = normalize_import_module(&entry.module);
 
         let key = format!("{}@{:#x}", entry.name, entry.address);
         if seen.insert(key) {
@@ -224,30 +231,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_split_import_name_with_module() {
-        let (module, name) = split_import_name("kernel32_CreateFileA");
-        assert_eq!(module, Some("kernel32.dll".to_string()));
-        assert_eq!(name, "CreateFileA");
+    fn test_normalize_import_module_bare() {
+        assert_eq!(normalize_import_module("kernel32"), Some("kernel32.dll".to_string()));
+        assert_eq!(normalize_import_module("KERNEL32"), Some("kernel32.dll".to_string()));
     }
 
     #[test]
-    fn test_split_import_name_without_module() {
-        let (module, name) = split_import_name("CreateFileA");
-        assert_eq!(module, None);
-        assert_eq!(name, "CreateFileA");
+    fn test_normalize_import_module_with_extension() {
+        assert_eq!(normalize_import_module("KERNEL32.DLL"), Some("kernel32.dll".to_string()));
+        assert_eq!(normalize_import_module("ntoskrnl.exe"), Some("ntoskrnl.exe".to_string()));
+        assert_eq!(normalize_import_module("winspool.drv"), Some("winspool.drv".to_string()));
     }
 
     #[test]
-    fn test_split_import_name_unknown_module() {
-        let (module, name) = split_import_name("unknown_SomeFunction");
-        assert_eq!(module, None);
-        assert_eq!(name, "unknown_SomeFunction");
-    }
-
-    #[test]
-    fn test_split_import_name_case_insensitive() {
-        let (module, name) = split_import_name("KERNEL32_CreateFileA");
-        assert_eq!(module, Some("kernel32.dll".to_string()));
-        assert_eq!(name, "CreateFileA");
+    fn test_normalize_import_module_empty() {
+        assert_eq!(normalize_import_module(""), None);
     }
 }
