@@ -910,6 +910,11 @@ pub fn merge_dotnet_method_features(
                 .features
                 .characteristics
                 .insert(CharacteristicType::UnmanagedCall);
+            func_features
+                .features
+                .characteristic_counts
+                .entry(CharacteristicType::UnmanagedCall)
+                .or_insert(0);
         }
         if method.has_loop {
             func_features
@@ -948,7 +953,7 @@ pub fn merge_dotnet_method_features(
                 fs.namespaces.insert(ns.clone());
             }
             if insn.unmanaged_call {
-                fs.characteristics.insert(CharacteristicType::UnmanagedCall);
+                fs.add_characteristic(CharacteristicType::UnmanagedCall);
             }
             func_features.instructions.insert(Address(insn.rva), fs);
         }
@@ -979,6 +984,9 @@ pub fn merge_dotnet_method_features(
             }
             if blk.unmanaged_call {
                 fs.characteristics.insert(CharacteristicType::UnmanagedCall);
+                fs.characteristic_counts
+                    .entry(CharacteristicType::UnmanagedCall)
+                    .or_insert(0);
             }
             func_features.basic_blocks.insert(blk.id, fs);
         }

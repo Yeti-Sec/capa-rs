@@ -138,7 +138,7 @@ pub struct RuleMetadata {
     pub namespace: Option<String>,
     pub authors: Vec<String>,
     pub scopes: ScopesOutput,
-    #[serde(rename = "att&ck")]
+    #[serde(alias = "att&ck")]
     pub attack: Vec<AttackSpec>,
     pub mbc: Vec<MBCSpec>,
     pub references: Vec<String>,
@@ -146,7 +146,7 @@ pub struct RuleMetadata {
     pub description: String,
     #[serde(rename = "lib")]
     pub lib: bool,
-    #[serde(rename = "capa/subscope")]
+    #[serde(alias = "capa/subscope")]
     pub is_subscope_rule: bool,
 }
 
@@ -288,10 +288,6 @@ impl ResultDocument {
         let mut rule_matches = HashMap::new();
 
         for m in matches {
-            if m.is_lib {
-                continue;
-            }
-
             let meta = RuleMetadata {
                 name: m.name.clone(),
                 namespace: m.namespace.clone(),
@@ -375,6 +371,11 @@ impl ResultDocument {
         }
     }
 
+    pub fn with_extractor(mut self, extractor: impl Into<String>) -> Self {
+        self.meta.analysis.extractor = extractor.into();
+        self
+    }
+
     pub fn to_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string_pretty(self)
     }
@@ -444,5 +445,58 @@ mod tests {
         let json = doc.to_json().unwrap();
         assert!(json.contains("\"version\": \"0.1.0\""));
         assert!(json.contains("\"flavor\": \"static\""));
+    }
+
+    #[test]
+    fn test_result_document_includes_lib_rules_and_python_field_names() {
+        let matches = vec![
+            RuleMatch {
+                name: "encode data using XOR".to_string(),
+                namespace: Some("data-manipulation/encoding/xor".to_string()),
+                match_count: 1,
+                locations: vec![Address(0x401000)],
+                function_names: vec![],
+                attack: vec!["Defense Evasion::Obfuscated Files or Information [T1027]".to_string()],
+                mbc: vec![],
+                is_lib: false,
+            },
+            RuleMatch {
+                name: "contain loop".to_string(),
+                namespace: None,
+                match_count: 2,
+                locations: vec![Address(0x401000), Address(0x402000)],
+                function_names: vec![],
+                attack: vec![],
+                mbc: vec![],
+                is_lib: true,
+            },
+        ];
+
+        let doc = ResultDocument::from_matches(
+            &matches,
+            1048,
+            Sample {
+                md5: "d41d8cd98f00b204e9800998ecf8427e".to_string(),
+                sha1: "da39a3ee5e6b4b0d3255bfef95601890afd80709".to_string(),
+                sha256: "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855".to_string(),
+                path: "sample.exe".to_string(),
+            },
+            OsType::Windows,
+            ArchType::Amd64,
+            FormatType::Pe,
+            10,
+            &[(Address(0x401000), 5)],
+            &["/opt/capa-rules".to_string()],
+        ).with_extractor("capa-rs/ida");
+
+        let json = doc.to_json().unwrap();
+        let parsed: serde_json::Value = serde_json::from_str(&json).unwrap();
+        assert_eq!(parsed["meta"]["analysis"]["extractor"], "capa-rs/ida");
+        assert_eq!(parsed["rules"]["encode data using XOR"]["meta"]["lib"], false);
+        assert_eq!(parsed["rules"]["encode data using XOR"]["meta"]["is_subscope_rule"], false);
+        assert_eq!(parsed["rules"]["encode data using XOR"]["meta"]["attack"][0]["id"], "T1027");
+        assert!(parsed["rules"]["encode data using XOR"]["meta"].get("att&ck").is_none());
+        assert_eq!(parsed["rules"]["contain loop"]["meta"]["lib"], true);
+        assert_eq!(parsed["rules"]["contain loop"]["matches"].as_array().unwrap().len(), 2);
     }
 }

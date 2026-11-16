@@ -325,11 +325,7 @@ impl MatchEngine {
                 if scope_features.numbers.contains(&num.value) { 1 } else { 0 }
             }
             FeatureNode::Feature(Feature::Characteristic(char_type)) => {
-                if scope_features.characteristics.contains(char_type) {
-                    1
-                } else {
-                    0
-                }
+                scope_features.characteristic_count(char_type)
             }
             FeatureNode::Feature(Feature::Offset(offset_matcher)) => {
                 if scope_features.offsets.contains(&offset_matcher.value) { 1 } else { 0 }

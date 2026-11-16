@@ -387,6 +387,12 @@ fn main() -> Result<()> {
         path: binary_path.clone(),
     });
 
+    let raw_matches = if cli.json_document {
+        Some(matches.clone())
+    } else {
+        None
+    };
+
     let mut output = CapaOutput::from_matches(matches, engine.rule_count())
         .with_timing(timing);
     if let Some(sample) = sample_info {
@@ -422,24 +428,21 @@ fn main() -> Result<()> {
             .collect();
         let file_count = features.file.imports.len() + features.file.strings.len();
 
+        let extractor_name = if features.format == FormatType::DotNet {
+            "capa-rs/dotnet"
+        } else if cli.backend == "ida" {
+            "capa-rs/ida"
+        } else {
+            "capa-rs/goblin"
+        };
+
         let doc = ResultDocument::from_matches(
-            &output.capabilities.iter().map(|c| capa_core::matcher::RuleMatch {
-                name: c.name.clone(),
-                namespace: c.namespace.clone(),
-                match_count: c.matches,
-                locations: c.locations.iter().map(|l| {
-                    capa_core::feature::Address(u64::from_str_radix(l.trim_start_matches("0x"), 16).unwrap_or(0))
-                }).collect(),
-                function_names: c.function_names.clone(),
-                attack: c.attack_raw.clone(),
-                mbc: c.mbc_raw.clone(),
-                is_lib: false,
-            }).collect::<Vec<_>>(),
+            raw_matches.as_deref().unwrap_or(&[]),
             output.total_rules, sample,
             features.os, features.arch, features.format,
             file_count, &func_counts,
             &[rules_path.display().to_string()],
-        );
+        ).with_extractor(extractor_name);
         println!("{}", doc.to_json().map_err(|e| anyhow::anyhow!("{e}"))?);
     } else if cli.json {
         println!("{}", output.to_json()?);

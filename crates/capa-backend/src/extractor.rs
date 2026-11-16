@@ -61,7 +61,7 @@ fn insert_api(apis: &mut std::collections::HashSet<String>, module: &Option<Stri
         }
     }
 }
-use crate::lifter::{lift_binary, ILOperation, LiftedBasicBlock, LiftedFunction, LiftedProgram};
+use crate::lifter::{lift_binary, ILOperation, LiftedBasicBlock, LiftedProgram};
 use crate::loader::{load_binary, BinaryInfo};
 use crate::dotnet_extractor::{extract_dotnet_features, merge_dotnet_features, merge_dotnet_method_features};
 
@@ -225,17 +225,17 @@ impl BinaryExtractor {
 
         // Issue 8: Improved PE carving - scan raw bytes for embedded PE files
         if self.has_embedded_pe_bytes(bytes) {
-            features.file.characteristics.insert(CharacteristicType::EmbeddedPe);
+            features.file.add_characteristic(CharacteristicType::EmbeddedPe);
         }
 
         // Check for forwarded exports
         if info.has_forwarded_exports {
-            features.file.characteristics.insert(CharacteristicType::ForwardedExport);
+            features.file.add_characteristic(CharacteristicType::ForwardedExport);
         }
 
         // Check for mixed-mode assembly (.NET + native)
         if info.is_mixed_mode {
-            features.file.characteristics.insert(CharacteristicType::MixedMode);
+            features.file.add_characteristic(CharacteristicType::MixedMode);
         }
 
         // Issue 9: COM detection - check for COM-related imports
@@ -254,12 +254,18 @@ impl BinaryExtractor {
             // Check for loops at function level
             let has_loop = func.basic_blocks.iter().any(|bb| bb.is_loop_header);
             if has_loop {
-                func_features.features.characteristics.insert(CharacteristicType::Loop);
+                func_features.features.add_characteristic(CharacteristicType::Loop);
             }
 
             // Check for recursive calls
             if func.callees.contains(addr) {
-                func_features.features.characteristics.insert(CharacteristicType::RecursiveCall);
+                func_features.features.add_characteristic(CharacteristicType::RecursiveCall);
+            }
+
+            // Incoming callers count (`calls to`)
+            let unique_callers: std::collections::HashSet<u64> = func.callers.iter().copied().collect();
+            for _ in 0..unique_callers.len() {
+                func_features.features.add_characteristic(CharacteristicType::CallsTo);
             }
 
             // Extract basic block features
@@ -268,7 +274,7 @@ impl BinaryExtractor {
 
                 // Detect stack string construction at BB scope
                 if self.detect_stack_strings_in_bb(bb) {
-                    bb_features.characteristics.insert(CharacteristicType::StackString);
+                    bb_features.add_characteristic(CharacteristicType::StackString);
                 }
 
                 // Debug: Check for blocks with both TightLoop and Nzxor
@@ -279,8 +285,10 @@ impl BinaryExtractor {
 
                 func_features.basic_blocks.insert(bb.index, bb_features.clone());
 
-                // Merge to function level
-                func_features.features.merge(&bb_features);
+                // Roll up set-valued summary fields to function level without
+                // duplicating additive counts (`mnemonics`, `characteristic_counts`)
+                // that `func.all_features()` already sums across basic blocks.
+                func_features.features.merge_sets_only(&bb_features);
             }
 
             // Set basic block count for count(basic block) feature
@@ -297,9 +305,10 @@ impl BinaryExtractor {
             features.functions.insert(Address(*addr), func_features);
         }
 
-        // Merge all function features to file level
+        // Roll up set-valued summary fields to file level (for CLI summary stats)
+        // without duplicating additive counts summed by `features.all_features()`.
         for func in features.functions.values() {
-            features.file.merge(&func.features);
+            features.file.merge_sets_only(&func.features);
         }
 
         // Log extraction summary
@@ -316,13 +325,13 @@ impl BinaryExtractor {
 
         // Check for tight loop (small loop)
         if bb.is_loop_header && bb.instructions.len() <= 10 {
-            features.characteristics.insert(CharacteristicType::TightLoop);
+            features.add_characteristic(CharacteristicType::TightLoop);
         }
 
-        // Check for nzxor in block
+        // Check for nzxor in block (counted per instruction for count(characteristic(nzxor)))
         for insn in &bb.instructions {
             if self.is_nzxor(insn) {
-                features.characteristics.insert(CharacteristicType::Nzxor);
+                features.add_characteristic(CharacteristicType::Nzxor);
             }
         }
 
@@ -407,12 +416,13 @@ impl BinaryExtractor {
             }
         }
 
-        // Check for indirect calls
+        // Check for outgoing and indirect calls (counted per call instruction)
         for insn in &bb.instructions {
             if insn.mnemonic == "call" {
+                features.add_characteristic(CharacteristicType::CallsFrom);
                 for op in &insn.operations {
                     if let ILOperation::Branch { target: None, is_call: true } = op {
-                        features.characteristics.insert(CharacteristicType::IndirectCall);
+                        features.add_characteristic(CharacteristicType::IndirectCall);
                     }
                 }
             }
@@ -426,18 +436,18 @@ impl BinaryExtractor {
             for op in &insn.operands {
                 let op_lower = op.to_lowercase();
                 if op_lower.contains("fs:") {
-                    features.characteristics.insert(CharacteristicType::FsAccess);
+                    features.add_characteristic(CharacteristicType::FsAccess);
                     // PEB access requires specific TEB offset on Windows
                     if info.os == OsType::Windows && self.operand_has_offset(&op_lower, 0x30) {
-                        features.characteristics.insert(CharacteristicType::Peb);
+                        features.add_characteristic(CharacteristicType::Peb);
                     }
                 }
                 if op_lower.contains("gs:") {
-                    features.characteristics.insert(CharacteristicType::GsAccess);
+                    features.add_characteristic(CharacteristicType::GsAccess);
                     if info.os == OsType::Windows && info.arch == ArchType::Amd64
                         && self.operand_has_offset(&op_lower, 0x60)
                     {
-                        features.characteristics.insert(CharacteristicType::Peb);
+                        features.add_characteristic(CharacteristicType::Peb);
                     }
                 }
             }
@@ -452,22 +462,22 @@ impl BinaryExtractor {
 
         // Check for call-next pattern (shellcode/position-independent code)
         if self.detect_call_next(bb) {
-            features.characteristics.insert(CharacteristicType::CallsFromShellcode);
+            features.add_characteristic(CharacteristicType::CallsFromShellcode);
         }
 
         // Check for call $+5 pattern (get EIP/RIP)
         if self.detect_call_plus_5(bb) {
-            features.characteristics.insert(CharacteristicType::CallPlus5);
+            features.add_characteristic(CharacteristicType::CallPlus5);
         }
 
         // Check for unmangled API calls
         if self.detect_unmangled_call(bb, info) {
-            features.characteristics.insert(CharacteristicType::UnmangledCall);
+            features.add_characteristic(CharacteristicType::UnmangledCall);
         }
 
         // Check for cross-section flow
         if self.detect_cross_section_flow(bb, info) {
-            features.characteristics.insert(CharacteristicType::CrossSectionFlow);
+            features.add_characteristic(CharacteristicType::CrossSectionFlow);
         }
 
         features
@@ -1225,5 +1235,173 @@ mod tests {
         };
 
         assert!(extractor.detect_cross_section_flow(&bb, &info));
+    }
+
+    #[test]
+    fn test_characteristic_occurrence_counts_without_double_counting() {
+        use std::collections::HashMap;
+        use capa_core::matcher::MatchEngine;
+        use capa_core::rule::{parse_rule, FormatType};
+
+        let extractor = BinaryExtractor::new();
+        let make_xor = |addr: u64, dst: &str, src: &str, imm: Option<i64>| crate::lifter::LiftedInstruction {
+            address: addr,
+            mnemonic: "xor".to_string(),
+            operands: vec![dst.to_string(), src.to_string()],
+            operand_values: vec![None, imm],
+            bytes: vec![0x34, imm.unwrap_or(0) as u8],
+            operations: vec![ILOperation::Xor {
+                operands: vec![dst.to_string(), src.to_string()],
+                constants: vec![],
+            }],
+        };
+
+        let info = crate::loader::BinaryInfo {
+            os: OsType::Windows,
+            arch: ArchType::Amd64,
+            format: FormatType::Pe,
+            imports: vec![],
+            exports: vec![],
+            sections: vec![],
+            strings: vec![],
+            is_dotnet: false,
+            has_forwarded_exports: false,
+            is_mixed_mode: false,
+            entry_point: 0x1000,
+        };
+
+        // Function 0 (0x1000): 0 nzxor (only zeroing `xor eax, eax`)
+        let f0 = crate::lifter::LiftedFunction {
+            address: 0x1000,
+            name: Some("f_zero".to_string()),
+            basic_blocks: vec![crate::lifter::LiftedBasicBlock {
+                index: 0,
+                address: 0x1000,
+                end_address: 0x1002,
+                instructions: vec![make_xor(0x1000, "eax", "eax", None)],
+                successors: vec![],
+                predecessors: vec![],
+                is_loop_header: true,
+            }],
+            callees: vec![],
+            callers: vec![],
+            is_thunk: false,
+            thunk_target: None,
+            is_library: false,
+        };
+
+        // Function 1 (0x2000): 1 nzxor (`xor al, 0x36`) + 1 zeroing `xor eax, eax`
+        let f1 = crate::lifter::LiftedFunction {
+            address: 0x2000,
+            name: Some("f_one".to_string()),
+            basic_blocks: vec![crate::lifter::LiftedBasicBlock {
+                index: 0,
+                address: 0x2000,
+                end_address: 0x2004,
+                instructions: vec![
+                    make_xor(0x2000, "eax", "eax", None),
+                    make_xor(0x2002, "al", "0x36", Some(0x36)),
+                ],
+                successors: vec![],
+                predecessors: vec![],
+                is_loop_header: true,
+            }],
+            callees: vec![],
+            callers: vec![],
+            is_thunk: false,
+            thunk_target: None,
+            is_library: false,
+        };
+
+        // Function 2 (0x3000): 2 nzxor (`xor al, 0x36` and `xor al, 0x5c`, HMAC ipad/opad)
+        let f2 = crate::lifter::LiftedFunction {
+            address: 0x3000,
+            name: Some("f_hmac".to_string()),
+            basic_blocks: vec![crate::lifter::LiftedBasicBlock {
+                index: 0,
+                address: 0x3000,
+                end_address: 0x3004,
+                instructions: vec![
+                    make_xor(0x3000, "al", "0x36", Some(0x36)),
+                    make_xor(0x3002, "al", "0x5c", Some(0x5c)),
+                ],
+                successors: vec![],
+                predecessors: vec![],
+                is_loop_header: true,
+            }],
+            callees: vec![],
+            callers: vec![],
+            is_thunk: false,
+            thunk_target: None,
+            is_library: false,
+        };
+
+        let mut functions = HashMap::new();
+        functions.insert(0x1000, f0);
+        functions.insert(0x2000, f1);
+        functions.insert(0x3000, f2);
+        let program = crate::lifter::LiftedProgram {
+            functions,
+            entry_point: 0x1000,
+            info,
+            strings_at: HashMap::new(),
+            iat_entries: HashMap::new(),
+            thunk_targets: HashMap::new(),
+            import_apis_at: HashMap::new(),
+        };
+
+        let extracted = extractor.extract_from_lifted(&program, &[]);
+        assert_eq!(
+            extracted.functions[&Address(0x1000)].all_features().characteristic_count(&CharacteristicType::Nzxor),
+            0,
+            "zeroing xor must have nzxor count 0"
+        );
+        assert_eq!(
+            extracted.functions[&Address(0x2000)].all_features().characteristic_count(&CharacteristicType::Nzxor),
+            1,
+            "single nzxor must count as 1 (no double-counting from BB+Function merge)"
+        );
+        assert_eq!(
+            extracted.functions[&Address(0x3000)].all_features().characteristic_count(&CharacteristicType::Nzxor),
+            2,
+            "two nzxors must count as 2"
+        );
+        assert_eq!(
+            extracted.all_features().characteristic_count(&CharacteristicType::Nzxor),
+            3,
+            "file all_features() must sum 0 + 1 + 2 = 3 without double-counting"
+        );
+
+        let rule_exact_one = parse_rule(
+            r#"
+rule:
+  meta:
+    name: exact one nzxor
+    scopes:
+      static: function
+      dynamic: unsupported
+  features:
+    - count(characteristic(nzxor)): 1
+"#,
+        ).unwrap();
+        let rule_two_or_more = parse_rule(
+            r#"
+rule:
+  meta:
+    name: two or more nzxor
+    scopes:
+      static: function
+      dynamic: unsupported
+  features:
+    - count(characteristic(nzxor)): 2 or more
+"#,
+        ).unwrap();
+
+        let engine = MatchEngine::new(vec![rule_exact_one, rule_two_or_more]);
+        let m_one = engine.match_rule_by_name("exact one nzxor", &extracted).expect("f_one must match exact 1");
+        assert_eq!(m_one.locations, vec![Address(0x2000)], "only f_one has exact 1 nzxor");
+
+        let m_two = engine.match_rule_by_name("two or more nzxor", &extracted).expect("f_hmac must match >=2");
+        assert_eq!(m_two.locations, vec![Address(0x3000)], "only f_hmac has >=2 nzxors");
     }
 }

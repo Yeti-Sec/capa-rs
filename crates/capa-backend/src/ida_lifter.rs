@@ -92,6 +92,16 @@ fn x86_reg_name(reg_id: u16, dtype: OperandDataType) -> &'static str {
     }
 }
 
+/// Extract numeric operand value for `number:` / `operand[n].number` matching.
+/// Memory/displacement addresses are intentionally excluded (they belong in `offset:`).
+fn operand_numeric_value(op_type: OperandType, imm_val: Option<u64>, addr_val: Option<u64>) -> Option<i64> {
+    match op_type {
+        OperandType::Imm => imm_val.map(|v| v as i64),
+        OperandType::Near | OperandType::Far => addr_val.map(|v| v as i64),
+        _ => None,
+    }
+}
+
 /// Format an operand string from op_t POD fields — no FFI, pure Rust.
 ///
 /// Produces strings compatible with what the extractor expects:
@@ -137,10 +147,14 @@ fn format_operand(op: &Operand, segpref: Option<i32>, addr_dtype: OperandDataTyp
             if disp == 0 {
                 format!("{}[{}]", seg_prefix, base_str)
             } else {
-                // Check if displacement looks negative (high bit set in a
-                // reasonably-sized value).  IDA stores displacements as unsigned
-                // ea_t, but the extractor expects signed formatting.
-                let signed = disp as i64;
+                // Check if displacement looks negative. On 32-bit binaries IDA may
+                // store negative displacements either 32-bit masked (0xffff_fff8)
+                // or 64-bit sign-extended (0xffffffff_fffffff8).
+                let signed = if matches!(addr_dtype, OperandDataType::DWord) && disp <= u32::MAX as u64 {
+                    (disp as u32 as i32) as i64
+                } else {
+                    disp as i64
+                };
                 if signed < 0 && signed > -0x1_0000_0000 {
                     format!("{}[{}-0x{:x}]", seg_prefix, base_str, -signed)
                 } else {
@@ -435,12 +449,7 @@ fn lift_instructions(idb: &IDB, start: u64, end: u64, addr_dtype: OperandDataTyp
         for n in 0..insn.operand_count() {
             let (op_str, op_val) = if let Some(op) = insn.operand(n) {
                 let s = format_operand(&op, segpref, addr_dtype);
-                let v = match op.type_() {
-                    OperandType::Imm => op.value().map(|v| v as i64),
-                    OperandType::Near | OperandType::Far => op.addr().map(|v| v as i64),
-                    OperandType::Mem | OperandType::Displ => op.addr().map(|v| v as i64),
-                    _ => None,
-                };
+                let v = operand_numeric_value(op.type_(), op.value(), op.addr());
                 (s, v)
             } else {
                 (String::new(), None)
@@ -523,7 +532,7 @@ fn build_iat_map(info: &BinaryInfo) -> HashMap<u64, (Option<String>, String)> {
 }
 
 /// Build string address map from IDA's string list.
-fn build_string_map(idb: &IDB, info: &BinaryInfo) -> HashMap<u64, String> {
+fn build_string_map(_idb: &IDB, info: &BinaryInfo) -> HashMap<u64, String> {
     let mut strings_at = HashMap::new();
 
     // Add strings from loader (which uses IDA's string list)
@@ -623,5 +632,16 @@ mod tests {
         assert_eq!(normalize_module("kernel32.dll"), "kernel32");
         assert_eq!(normalize_module("NTDLL.DLL"), "ntdll");
         assert_eq!(normalize_module("user32"), "user32");
+    }
+
+    #[test]
+    fn test_operand_numeric_value_excludes_mem_and_displ() {
+        // Positive: immediates and near/far branch targets yield numeric values
+        assert_eq!(operand_numeric_value(OperandType::Imm, Some(0x36), None), Some(0x36));
+        assert_eq!(operand_numeric_value(OperandType::Near, None, Some(0x140001000)), Some(0x140001000));
+        // Negative: Mem and Displ operands must NOT leak into `number:` features
+        assert_eq!(operand_numeric_value(OperandType::Mem, None, Some(0x140002000)), None);
+        assert_eq!(operand_numeric_value(OperandType::Displ, None, Some(0x20)), None);
+        assert_eq!(operand_numeric_value(OperandType::Reg, None, None), None);
     }
 }

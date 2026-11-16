@@ -1,0 +1,23 @@
+adapter = "adapter:CapaRsAdapter"
+tool = "capa-rs"
+supported_versions = ">=0.1,<1"
+file_kinds = ["pe", "elf"]
+outputs = ["json"]
+family = "capabilities"
+
+[[modes]]
+name = "default"
+requires = []
+
+[[options]]
+name = "backend"
+values = ["goblin", "ida"]
+default = "ida"
+requires = { ida = ["ida"] }
+description = "Analysis backend: pure-Rust goblin+dotscope (goblin) or IDA Pro 9.5 via idalib (ida)"
+
+[[options]]
+name = "rules"
+values = ["capa-rules", "enhanced-dotnet-rules"]
+default = "capa-rules"
+description = "Rule set directory under /opt: standard Mandiant capa-rules or supplementary enhanced-dotnet-rules"

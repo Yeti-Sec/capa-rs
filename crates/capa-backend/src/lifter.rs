@@ -125,6 +125,22 @@ pub fn lift_binary(bytes: &[u8], info: &BinaryInfo) -> Result<LiftedProgram, Loa
         return lift_shellcode(bytes, info);
     }
 
+    // Pure-IL .NET assemblies (including AnyCPU PE32 where info.arch == ArchType::Any)
+    // contain CIL bytecode rather than native instructions; managed features are extracted
+    // via dotscope in dotnet_extractor.rs. Also guard ArchType::Any generally since
+    // neither iced-x86 nor capstone can disassemble an unspecified architecture.
+    if (info.is_dotnet && !info.is_mixed_mode) || matches!(info.arch, capa_core::rule::ArchType::Any) {
+        return Ok(LiftedProgram {
+            functions: HashMap::new(),
+            entry_point: info.entry_point,
+            info: info.clone(),
+            strings_at: HashMap::new(),
+            iat_entries: HashMap::new(),
+            thunk_targets: HashMap::new(),
+            import_apis_at: HashMap::new(),
+        });
+    }
+
     // Route to appropriate disassembler based on architecture
     if info.arch.is_x86() {
         lift_with_iced(bytes, info)
@@ -2328,5 +2344,49 @@ mod tests {
         assert_eq!(parse_branch_target("0x401000"), Some(0x401000));
         assert_eq!(parse_branch_target("401000"), Some(0x401000));
         assert_eq!(parse_branch_target("eax"), None);
+    }
+
+    #[test]
+    fn test_lift_binary_anycpu_dotnet_skips_native_disasm() {
+        use capa_core::rule::{ArchType, FormatType, OsType};
+        let info = BinaryInfo {
+            os: OsType::Windows,
+            arch: ArchType::Any,
+            format: FormatType::DotNet,
+            imports: vec![],
+            exports: vec![],
+            sections: vec![],
+            strings: vec![],
+            is_dotnet: true,
+            has_forwarded_exports: false,
+            is_mixed_mode: false,
+            entry_point: 0x2000,
+        };
+        let lifted = lift_binary(&[0x4D, 0x5A, 0x90, 0x00], &info)
+            .expect("AnyCPU pure-IL .NET must not fail in capstone");
+        assert!(lifted.functions.is_empty());
+        assert_eq!(lifted.entry_point, 0x2000);
+    }
+
+    #[test]
+    fn test_lift_with_capstone_rejects_unsupported_native_arch() {
+        use capa_core::rule::{ArchType, FormatType, OsType};
+        let info = BinaryInfo {
+            os: OsType::Linux,
+            arch: ArchType::Any,
+            format: FormatType::Elf,
+            imports: vec![],
+            exports: vec![],
+            sections: vec![],
+            strings: vec![],
+            is_dotnet: false,
+            has_forwarded_exports: false,
+            is_mixed_mode: false,
+            entry_point: 0x1000,
+        };
+        // Direct call to lift_with_capstone still rejects ArchType::Any (negative guard),
+        // while top-level lift_binary returns an empty LiftedProgram gracefully.
+        assert!(lift_with_capstone(&[0x7f, b'E', b'L', b'F'], &info).is_err());
+        assert!(lift_binary(&[0x7f, b'E', b'L', b'F'], &info).is_ok());
     }
 }

@@ -1,0 +1,45 @@
+{
+  "mode": "default",
+  "expected": {
+    "tool": "capa-rs",
+    "tool_version": "0.1.0",
+    "mode": "default",
+    "items": [
+      {
+        "kind": "rule_match",
+        "key": "contain loop",
+        "attrs": {
+          "match_count": 2
+        }
+      },
+      {
+        "kind": "rule_match",
+        "key": "encode data using XOR",
+        "attrs": {
+          "namespace": "data-manipulation/encoding/xor",
+          "match_count": 1
+        }
+      },
+      {
+        "kind": "capability",
+        "key": "encode data using XOR",
+        "attrs": {
+          "namespace": "data-manipulation/encoding/xor"
+        }
+      },
+      {
+        "kind": "attack_technique",
+        "key": "T1027",
+        "attrs": {
+          "rule": "encode data using XOR",
+          "tactic": "Defense Evasion",
+          "technique": "Obfuscated Files or Information"
+        }
+      }
+    ],
+    "metrics": {
+      "count": 4,
+      "recognized_empty": false
+    }
+  }
+}

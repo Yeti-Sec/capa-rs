@@ -41,6 +41,9 @@ pub struct FeatureSet {
     pub operands: Vec<(usize, Option<i64>, Option<i64>)>,
     /// Characteristics
     pub characteristics: HashSet<CharacteristicType>,
+    /// Characteristic occurrence counts (backs `count(characteristic(...))` rules)
+    #[serde(default)]
+    pub characteristic_counts: HashMap<CharacteristicType, usize>,
     /// Section names
     pub sections: HashSet<String>,
     /// .NET namespaces
@@ -58,7 +61,25 @@ impl FeatureSet {
         Self::default()
     }
 
-    /// Merge another feature set into this one
+    /// Record one occurrence of a characteristic in this scope.
+    pub fn add_characteristic(&mut self, c: CharacteristicType) {
+        self.characteristics.insert(c);
+        *self.characteristic_counts.entry(c).or_insert(0) += 1;
+    }
+
+    /// Return the occurrence count of a characteristic in this scope.
+    /// Falls back to `1` if `characteristics` contains `c` without an explicit
+    /// count entry (e.g. legacy deserialized JSON or tests that inserted into `characteristics` directly).
+    pub fn characteristic_count(&self, c: &CharacteristicType) -> usize {
+        match self.characteristic_counts.get(c) {
+            Some(&n) if n > 0 => n,
+            Some(_) => 1,
+            None if self.characteristics.contains(c) => 1,
+            None => 0,
+        }
+    }
+
+    /// Merge another feature set into this one (summing additive counts across disjoint child scopes).
     pub fn merge(&mut self, other: &FeatureSet) {
         self.apis.extend(other.apis.iter().cloned());
         self.imports.extend(other.imports.iter().cloned());
@@ -72,12 +93,43 @@ impl FeatureSet {
             *self.mnemonics.entry(k.clone()).or_insert(0) += v;
         }
         self.operands.extend(other.operands.iter().cloned());
-        self.characteristics.extend(other.characteristics.iter().cloned());
+        for (&c, &n) in &other.characteristic_counts {
+            if n > 0 {
+                self.characteristics.insert(c);
+                *self.characteristic_counts.entry(c).or_insert(0) += n;
+            }
+        }
+        for &c in &other.characteristics {
+            self.characteristics.insert(c);
+            if !other.characteristic_counts.contains_key(&c) {
+                *self.characteristic_counts.entry(c).or_insert(0) += 1;
+            }
+        }
         self.sections.extend(other.sections.iter().cloned());
         self.namespaces.extend(other.namespaces.iter().cloned());
         self.classes.extend(other.classes.iter().cloned());
         self.properties.extend(other.properties.iter().cloned());
         self.basic_block_count += other.basic_block_count;
+    }
+
+    /// Roll up set-valued presence fields into a parent summary `FeatureSet` without
+    /// duplicating additive child counts (`mnemonics`, `characteristic_counts`, `basic_block_count`)
+    /// that `all_features()` already sums across child scopes.
+    pub fn merge_sets_only(&mut self, other: &FeatureSet) {
+        self.apis.extend(other.apis.iter().cloned());
+        self.imports.extend(other.imports.iter().cloned());
+        self.exports.extend(other.exports.iter().cloned());
+        self.function_names.extend(other.function_names.iter().cloned());
+        self.strings.extend(other.strings.iter().cloned());
+        self.numbers.extend(other.numbers.iter().cloned());
+        self.offsets.extend(other.offsets.iter().cloned());
+        self.characteristics.extend(other.characteristics.iter().cloned());
+        for &c in &other.characteristics {
+            self.characteristic_counts.entry(c).or_insert(0);
+        }
+        self.sections.extend(other.sections.iter().cloned());
+        self.namespaces.extend(other.namespaces.iter().cloned());
+        self.classes.extend(other.classes.iter().cloned());
     }
 }
 

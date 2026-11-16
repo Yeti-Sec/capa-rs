@@ -1,0 +1,13 @@
+{
+  "mode": "default",
+  "expected": {
+    "tool": "capa-rs",
+    "tool_version": "0.1.0",
+    "mode": "default",
+    "items": [],
+    "metrics": {
+      "count": 0,
+      "recognized_empty": true
+    }
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "meta": {
+    "timestamp": "2026-11-16T00:00:00Z",
+    "version": "0.1.0",
+    "sample": {
+      "md5": "46e9a273d6587191b512fd1050dc1fc4",
+      "sha1": "015535f3274f28cf0b01a3e858de4ecf9fb4ef34",
+      "sha256": "32acc1bc543116cbe2cff10cb867772df2f254ff2634c870aef0b46c4b696fdb",
+      "path": "/tmp/tmpla1_nwfk/cli-32.exe"
+    },
+    "flavor": "static",
+    "analysis": {
+      "format": "pe",
+      "arch": "i386",
+      "os": "windows",
+      "extractor": "capa-rs/ida",
+      "rules": ["/opt/capa-rules"],
+      "layout": { "functions": [] },
+      "feature_counts": { "file": 10, "functions": [] }
+    }
+  },
+  "rules": {
+    "contain loop": {
+      "meta": {
+        "name": "contain loop",
+        "authors": [],
+        "scopes": { "static": "function", "dynamic": "unsupported" },
+        "attack": [],
+        "mbc": [],
+        "references": [],
+        "examples": [],
+        "description": "",
+        "lib": true,
+        "is_subscope_rule": false
+      },
+      "source": "",
+      "matches": [
+        [{ "type": "absolute", "value": 4198544 }, { "success": true, "node": { "type": "statement", "statement": { "type": "and", "description": null } }, "children": [] }],
+        [{ "type": "absolute", "value": 4198720 }, { "success": true, "node": { "type": "statement", "statement": { "type": "and", "description": null } }, "children": [] }]
+      ]
+    },
+    "encode data using XOR": {
+      "meta": {
+        "name": "encode data using XOR",
+        "namespace": "data-manipulation/encoding/xor",
+        "authors": [],
+        "scopes": { "static": "function", "dynamic": "unsupported" },
+        "attack": [
+          {
+            "parts": ["Defense Evasion", "Obfuscated Files or Information"],
+            "tactic": "Defense Evasion",
+            "technique": "Obfuscated Files or Information",
+            "subtechnique": "",
+            "id": "T1027"
+          }
+        ],
+        "mbc": [],
+        "references": [],
+        "examples": [],
+        "description": "",
+        "lib": false,
+        "is_subscope_rule": false
+      },
+      "source": "",
+      "matches": [
+        [{ "type": "absolute", "value": 4198803 }, { "success": true, "node": { "type": "statement", "statement": { "type": "and", "description": null } }, "children": [] }]
+      ]
+    }
+  }
+}
