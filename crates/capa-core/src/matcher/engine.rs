@@ -8,7 +8,7 @@ use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
-use crate::feature::{Address, ExtractedFeatures, FeatureSet};
+use crate::feature::{Address, ExtractedFeatures, FeatureSet, FunctionFeatures};
 use crate::rule::{
     ArchType, CountConstraint, Feature, FeatureNode, FormatType, OsType,
     Rule, StaticScope, StringMatcher,
@@ -42,6 +42,16 @@ pub struct MatchEngine {
     rule_index: HashMap<String, usize>,
 }
 
+type MatchCache = Arc<DashMap<String, Option<RuleMatch>>>;
+
+#[derive(Clone, Copy)]
+enum ScopeContext<'a> {
+    File,
+    Function(&'a FunctionFeatures),
+    BasicBlock(&'a FunctionFeatures, usize),
+    Instruction(&'a FunctionFeatures, Option<Address>),
+}
+
 impl MatchEngine {
     /// Create a new match engine with the given rules
     pub fn new(rules: Vec<Rule>) -> Self {
@@ -63,25 +73,25 @@ impl MatchEngine {
 
     /// Match all rules against extracted features (parallel)
     pub fn match_all(&self, features: &ExtractedFeatures) -> Vec<RuleMatch> {
-        let cache: Arc<DashMap<String, bool>> = Arc::new(DashMap::new());
+        let cache: MatchCache = Arc::new(DashMap::new());
 
         // Process rules in parallel
         self.rules
             .par_iter()
             .filter_map(|rule| {
-                self.match_rule(rule, features, &cache)
+                self.match_rule(rule, features, &cache, 0)
             })
             .collect()
     }
 
     /// Match all rules sequentially (for debugging/testing)
     pub fn match_all_sequential(&self, features: &ExtractedFeatures) -> Vec<RuleMatch> {
-        let cache: Arc<DashMap<String, bool>> = Arc::new(DashMap::new());
+        let cache: MatchCache = Arc::new(DashMap::new());
 
         self.rules
             .iter()
             .filter_map(|rule| {
-                self.match_rule(rule, features, &cache)
+                self.match_rule(rule, features, &cache, 0)
             })
             .collect()
     }
@@ -92,23 +102,27 @@ impl MatchEngine {
         name: &str,
         features: &ExtractedFeatures,
     ) -> Option<RuleMatch> {
-        let cache = Arc::new(DashMap::new());
+        let cache: MatchCache = Arc::new(DashMap::new());
         let idx = self.rule_index.get(name)?;
         let rule = &self.rules[*idx];
-        self.match_rule(rule, features, &cache)
+        self.match_rule(rule, features, &cache, 0)
     }
 
     fn match_rule(
         &self,
         rule: &Rule,
         features: &ExtractedFeatures,
-        cache: &Arc<DashMap<String, bool>>,
+        cache: &MatchCache,
+        depth: usize,
     ) -> Option<RuleMatch> {
-        // Check cache first
-        if let Some(cached) = cache.get(&rule.meta.name) {
-            if !*cached {
-                return None;
-            }
+        if depth > 64 {
+            return None;
+        }
+
+        // Check cache first (drop DashMap guard immediately before any recursive work)
+        let cached = cache.get(&rule.meta.name).map(|r| r.value().clone());
+        if let Some(res) = cached {
+            return res;
         }
 
         let scope = rule.meta.scopes.static_scope;
@@ -118,13 +132,13 @@ impl MatchEngine {
         let matched = match scope {
             StaticScope::File => {
                 let file_features = features.all_features();
-                if self.evaluate_node(&rule.features, &file_features, features, cache) {
+                if self.evaluate_node(&rule.features, &file_features, features, ScopeContext::File, cache, depth) {
                     // File-scope matched - now find which functions contributed
                     // by checking which functions have features that match the rule
                     for (addr, func) in &features.functions {
                         let func_features = func.all_features();
                         // Check if this function has any features relevant to the rule
-                        if self.evaluate_node(&rule.features, &func_features, features, cache) {
+                        if self.evaluate_node(&rule.features, &func_features, features, ScopeContext::Function(func), cache, depth) {
                             locations.push(*addr);
                             // Collect function names if available
                             for name in &func_features.function_names {
@@ -148,7 +162,7 @@ impl MatchEngine {
                 // Check each function and collect matching locations
                 for (addr, func) in &features.functions {
                     let func_features = func.all_features();
-                    if self.evaluate_node(&rule.features, &func_features, features, cache) {
+                    if self.evaluate_node(&rule.features, &func_features, features, ScopeContext::Function(func), cache, depth) {
                         locations.push(*addr);
                         // Collect function names if available
                         for name in &func_features.function_names {
@@ -161,11 +175,17 @@ impl MatchEngine {
                 !locations.is_empty()
             }
             StaticScope::BasicBlock => {
-                // Check each basic block
+                // Check each basic block (enriched with its instructions' operands/bytes/apis)
                 for (func_addr, func) in &features.functions {
-                    for (bb_idx, bb) in &func.basic_blocks {
-                        if self.evaluate_node(&rule.features, bb, features, cache) {
-                            locations.push(Address(func_addr.0 + *bb_idx as u64));
+                    for &bb_idx in func.basic_blocks.keys() {
+                        let bb_features = func.basic_block_all_features(bb_idx);
+                        if self.evaluate_node(&rule.features, &bb_features, features, ScopeContext::BasicBlock(func, bb_idx), cache, depth) {
+                            let bb_addr = func
+                                .basic_block_addresses
+                                .get(&bb_idx)
+                                .copied()
+                                .unwrap_or_else(|| Address(func_addr.0 + bb_idx as u64));
+                            locations.push(bb_addr);
                         }
                     }
                 }
@@ -175,7 +195,7 @@ impl MatchEngine {
                 // Check each instruction
                 for func in features.functions.values() {
                     for (addr, inst) in &func.instructions {
-                        if self.evaluate_node(&rule.features, inst, features, cache) {
+                        if self.evaluate_node(&rule.features, inst, features, ScopeContext::Instruction(func, Some(*addr)), cache, depth) {
                             locations.push(*addr);
                         }
                     }
@@ -185,10 +205,7 @@ impl MatchEngine {
             StaticScope::Unsupported => false,
         };
 
-        // Cache result
-        cache.insert(rule.meta.name.clone(), matched);
-
-        if matched {
+        let result = if matched {
             Some(RuleMatch {
                 name: rule.meta.name.clone(),
                 namespace: rule.meta.namespace.clone(),
@@ -201,7 +218,10 @@ impl MatchEngine {
             })
         } else {
             None
-        }
+        };
+
+        cache.insert(rule.meta.name.clone(), result.clone());
+        result
     }
 
     fn evaluate_node(
@@ -209,25 +229,27 @@ impl MatchEngine {
         node: &FeatureNode,
         scope_features: &FeatureSet,
         all_features: &ExtractedFeatures,
-        cache: &Arc<DashMap<String, bool>>,
+        ctx: ScopeContext<'_>,
+        cache: &MatchCache,
+        depth: usize,
     ) -> bool {
         match node {
             FeatureNode::And(children) => {
-                children.iter().all(|c| self.evaluate_node(c, scope_features, all_features, cache))
+                children.iter().all(|c| self.evaluate_node(c, scope_features, all_features, ctx, cache, depth))
             }
 
             FeatureNode::Or(children) => children
                 .iter()
-                .any(|c| self.evaluate_node(c, scope_features, all_features, cache)),
+                .any(|c| self.evaluate_node(c, scope_features, all_features, ctx, cache, depth)),
 
             FeatureNode::Not(child) => {
-                !self.evaluate_node(child, scope_features, all_features, cache)
+                !self.evaluate_node(child, scope_features, all_features, ctx, cache, depth)
             }
 
             FeatureNode::NOrMore(n, children) => {
                 let count = children
                     .iter()
-                    .filter(|c| self.evaluate_node(c, scope_features, all_features, cache))
+                    .filter(|c| self.evaluate_node(c, scope_features, all_features, ctx, cache, depth))
                     .count();
                 count >= *n
             }
@@ -235,11 +257,8 @@ impl MatchEngine {
             FeatureNode::Optional(_) => true,
 
             FeatureNode::Count(child, constraint) => {
-                // count(match(rule)) needs cross-rule context that count_feature
-                // lacks — resolve it here (Fix B). Otherwise fall back to plain
-                // feature counting within the current scope.
                 let count = match Self::unwrap_match(child) {
-                    Some(rule_name) => self.count_rule_matches(rule_name, all_features, cache),
+                    Some(rule_name) => self.count_rule_matches_in_context(rule_name, ctx, all_features, cache, depth),
                     None => self.count_feature(child, scope_features),
                 };
                 match constraint {
@@ -253,56 +272,108 @@ impl MatchEngine {
             FeatureNode::Feature(feature) => self.match_feature(feature, scope_features, all_features),
 
             FeatureNode::Description(_, child) => {
-                self.evaluate_node(child, scope_features, all_features, cache)
+                self.evaluate_node(child, scope_features, all_features, ctx, cache, depth)
             }
 
             FeatureNode::Match(rule_name) => {
-                // Check if referenced rule matches
-                if let Some(cached) = cache.get(rule_name) {
-                    return *cached;
-                }
-                if let Some(idx) = self.rule_index.get(rule_name) {
-                    let rule = &self.rules[*idx];
-                    self.match_rule(rule, all_features, cache).is_some()
-                } else {
-                    // `match:` can reference a NAMESPACE (capa semantics): matches
-                    // if ANY rule in that namespace (or a sub-namespace) matches.
-                    let prefix = format!("{}/", rule_name);
-                    let matched = self.rules.iter().any(|r| {
-                        r.meta
-                            .namespace
-                            .as_ref()
-                            .map_or(false, |ns| ns == rule_name || ns.starts_with(&prefix))
-                            && self.match_rule(r, all_features, cache).is_some()
-                    });
-                    cache.insert(rule_name.clone(), matched);
-                    matched
-                }
+                self.count_rule_matches_in_context(rule_name, ctx, all_features, cache, depth) > 0
             }
 
             FeatureNode::Instruction(children) => {
-                // All children must match the same instruction
-                // This is evaluated at instruction scope, so scope_features
-                // already represents a single instruction's features
-                children
-                    .iter()
-                    .all(|c| self.evaluate_node(c, scope_features, all_features, cache))
+                match ctx {
+                    ScopeContext::File => {
+                        all_features.functions.values().any(|func| {
+                            if func.is_synthetic_func_only() {
+                                let ff = func.all_features();
+                                children.iter().all(|c| self.evaluate_node(c, &ff, all_features, ScopeContext::Instruction(func, None), cache, depth))
+                            } else {
+                                func.instructions.iter().any(|(&addr, inst)| {
+                                    children.iter().all(|c| self.evaluate_node(c, inst, all_features, ScopeContext::Instruction(func, Some(addr)), cache, depth))
+                                })
+                            }
+                        })
+                    }
+                    ScopeContext::Function(func) => {
+                        if func.is_synthetic_func_only() {
+                            children.iter().all(|c| self.evaluate_node(c, scope_features, all_features, ScopeContext::Instruction(func, None), cache, depth))
+                        } else {
+                            func.instructions.iter().any(|(&addr, inst)| {
+                                children.iter().all(|c| self.evaluate_node(c, inst, all_features, ScopeContext::Instruction(func, Some(addr)), cache, depth))
+                            })
+                        }
+                    }
+                    ScopeContext::BasicBlock(func, bb_idx) => {
+                        if let Some(addrs) = func.basic_block_instructions.get(&bb_idx) {
+                            addrs.iter().any(|addr| {
+                                func.instructions.get(addr).is_some_and(|inst| {
+                                    children.iter().all(|c| self.evaluate_node(c, inst, all_features, ScopeContext::Instruction(func, Some(*addr)), cache, depth))
+                                })
+                            })
+                        } else if !func.instructions.is_empty() {
+                            func.instructions.iter().any(|(&addr, inst)| {
+                                children.iter().all(|c| self.evaluate_node(c, inst, all_features, ScopeContext::Instruction(func, Some(addr)), cache, depth))
+                            })
+                        } else {
+                            children.iter().all(|c| self.evaluate_node(c, scope_features, all_features, ScopeContext::Instruction(func, None), cache, depth))
+                        }
+                    }
+                    ScopeContext::Instruction(_, _) => {
+                        children.iter().all(|c| self.evaluate_node(c, scope_features, all_features, ctx, cache, depth))
+                    }
+                }
             }
 
             FeatureNode::BasicBlock(children) => {
-                // All children must match within a basic block
-                // Similar semantics to Instruction but at basic block scope
-                children
-                    .iter()
-                    .all(|c| self.evaluate_node(c, scope_features, all_features, cache))
+                match ctx {
+                    ScopeContext::File => {
+                        all_features.functions.values().any(|func| {
+                            if func.basic_blocks.is_empty() {
+                                if func.is_synthetic_func_only() {
+                                    let ff = func.all_features();
+                                    children.iter().all(|c| self.evaluate_node(c, &ff, all_features, ScopeContext::Function(func), cache, depth))
+                                } else {
+                                    false
+                                }
+                            } else {
+                                func.basic_blocks.keys().any(|&bb_idx| {
+                                    let bbf = func.basic_block_all_features(bb_idx);
+                                    children.iter().all(|c| self.evaluate_node(c, &bbf, all_features, ScopeContext::BasicBlock(func, bb_idx), cache, depth))
+                                })
+                            }
+                        })
+                    }
+                    ScopeContext::Function(func) => {
+                        if func.basic_blocks.is_empty() {
+                            if func.is_synthetic_func_only() {
+                                children.iter().all(|c| self.evaluate_node(c, scope_features, all_features, ctx, cache, depth))
+                            } else {
+                                false
+                            }
+                        } else {
+                            func.basic_blocks.keys().any(|&bb_idx| {
+                                let bbf = func.basic_block_all_features(bb_idx);
+                                children.iter().all(|c| self.evaluate_node(c, &bbf, all_features, ScopeContext::BasicBlock(func, bb_idx), cache, depth))
+                            })
+                        }
+                    }
+                    ScopeContext::BasicBlock(_, _) | ScopeContext::Instruction(_, _) => {
+                        children.iter().all(|c| self.evaluate_node(c, scope_features, all_features, ctx, cache, depth))
+                    }
+                }
             }
 
             FeatureNode::Function(children) => {
-                // All children must match within a function
-                // Similar semantics to Instruction but at function scope
-                children
-                    .iter()
-                    .all(|c| self.evaluate_node(c, scope_features, all_features, cache))
+                match ctx {
+                    ScopeContext::File => {
+                        all_features.functions.values().any(|func| {
+                            let ff = func.all_features();
+                            children.iter().all(|c| self.evaluate_node(c, &ff, all_features, ScopeContext::Function(func), cache, depth))
+                        })
+                    }
+                    ScopeContext::Function(_) | ScopeContext::BasicBlock(_, _) | ScopeContext::Instruction(_, _) => {
+                        children.iter().all(|c| self.evaluate_node(c, scope_features, all_features, ctx, cache, depth))
+                    }
+                }
             }
         }
     }
@@ -364,21 +435,154 @@ impl MatchEngine {
         }
     }
 
-    /// Count the locations at which a referenced rule (by name, or any rule in a
-    /// namespace) matched. Backs `count(match(rule)): N or more` (Fix B), which
-    /// previously always evaluated to 0. Program-global count (a superset of
-    /// capa's per-scope count, acceptable for "find at least everything").
-    fn count_rule_matches(
+    /// Count matches of a single rule within the active `ScopeContext`.
+    /// First consults the memoized program-global `match_rule` cache (O(1) fast-reject
+    /// when a rule does not match anywhere in the binary), then filters matches to
+    /// the current function, basic block, or instruction scope.
+    fn count_single_rule_in_context(
+        &self,
+        target: &Rule,
+        ctx: ScopeContext<'_>,
+        all_features: &ExtractedFeatures,
+        cache: &MatchCache,
+        depth: usize,
+    ) -> usize {
+        let Some(m) = self.match_rule(target, all_features, cache, depth + 1) else {
+            return 0;
+        };
+
+        let target_scope = target.meta.scopes.static_scope;
+        match (target_scope, ctx) {
+            // File-scope target matched -> holds in every enclosing/nested scope.
+            (StaticScope::File, _) => m.locations.len().max(1),
+
+            // Evaluating at file scope -> count all match locations across the binary.
+            (_, ScopeContext::File) => m.locations.len(),
+
+            // Function-scope target inside a Function / BasicBlock / Instruction context:
+            // must have matched on THIS function (`func.address`).
+            (
+                StaticScope::Function,
+                ScopeContext::Function(func)
+                | ScopeContext::BasicBlock(func, _)
+                | ScopeContext::Instruction(func, _),
+            ) => usize::from(m.locations.contains(&func.address)),
+
+            // BasicBlock-scope target inside a Function context: count matching blocks in `func`.
+            (StaticScope::BasicBlock, ScopeContext::Function(func)) => {
+                if func.basic_blocks.is_empty() {
+                    if func.is_synthetic_func_only() {
+                        let ff = func.all_features();
+                        usize::from(self.evaluate_node(&target.features, &ff, all_features, ctx, cache, depth + 1))
+                    } else {
+                        0
+                    }
+                } else {
+                    func.basic_blocks
+                        .keys()
+                        .filter(|&&bb_idx| {
+                            let bbf = func.basic_block_all_features(bb_idx);
+                            self.evaluate_node(
+                                &target.features,
+                                &bbf,
+                                all_features,
+                                ScopeContext::BasicBlock(func, bb_idx),
+                                cache,
+                                depth + 1,
+                            )
+                        })
+                        .count()
+                }
+            }
+
+            // BasicBlock-scope target inside a BasicBlock context (e.g. `check for PEB BeingDebugged flag`
+            // requiring `match: PEB access` in the SAME basic block): evaluate on `(func, bb_idx)`.
+            (StaticScope::BasicBlock, ScopeContext::BasicBlock(func, bb_idx)) => {
+                let bbf = func.basic_block_all_features(bb_idx);
+                usize::from(self.evaluate_node(
+                    &target.features,
+                    &bbf,
+                    all_features,
+                    ScopeContext::BasicBlock(func, bb_idx),
+                    cache,
+                    depth + 1,
+                ))
+            }
+
+            // BasicBlock-scope target inside an Instruction context: check enclosing block if known.
+            (StaticScope::BasicBlock, ScopeContext::Instruction(func, inst_addr)) => {
+                if let Some(addr) = inst_addr {
+                    if let Some((&bb_idx, _)) = func
+                        .basic_block_instructions
+                        .iter()
+                        .find(|(_, addrs)| addrs.contains(&addr))
+                    {
+                        let bbf = func.basic_block_all_features(bb_idx);
+                        return usize::from(self.evaluate_node(
+                            &target.features,
+                            &bbf,
+                            all_features,
+                            ScopeContext::BasicBlock(func, bb_idx),
+                            cache,
+                            depth + 1,
+                        ));
+                    }
+                }
+                0
+            }
+
+            // Instruction-scope target inside a Function context: count matching instructions in `func`.
+            (StaticScope::Instruction, ScopeContext::Function(func)) => {
+                if func.is_synthetic_func_only() {
+                    let ff = func.all_features();
+                    usize::from(self.evaluate_node(&target.features, &ff, all_features, ctx, cache, depth + 1))
+                } else {
+                    m.locations
+                        .iter()
+                        .filter(|a| func.instructions.contains_key(a))
+                        .count()
+                }
+            }
+
+            // Instruction-scope target inside a BasicBlock context: count matching instructions in `bb_idx`.
+            (StaticScope::Instruction, ScopeContext::BasicBlock(func, bb_idx)) => {
+                if let Some(addrs) = func.basic_block_instructions.get(&bb_idx) {
+                    addrs.iter().filter(|a| m.locations.contains(a)).count()
+                } else {
+                    m.locations
+                        .iter()
+                        .filter(|a| func.instructions.contains_key(a))
+                        .count()
+                }
+            }
+
+            // Instruction-scope target inside an Instruction context: must match THIS instruction.
+            (StaticScope::Instruction, ScopeContext::Instruction(func, inst_addr)) => {
+                match inst_addr {
+                    Some(addr) => usize::from(m.locations.contains(&addr)),
+                    None if func.is_synthetic_func_only() => {
+                        let ff = func.all_features();
+                        usize::from(self.evaluate_node(&target.features, &ff, all_features, ctx, cache, depth + 1))
+                    }
+                    None => 0,
+                }
+            }
+
+            (StaticScope::Unsupported, _) => 0,
+        }
+    }
+
+    /// Count scoped matches of a referenced rule (by exact name, or any rule in a namespace).
+    fn count_rule_matches_in_context(
         &self,
         rule_name: &str,
+        ctx: ScopeContext<'_>,
         all_features: &ExtractedFeatures,
-        cache: &Arc<DashMap<String, bool>>,
+        cache: &MatchCache,
+        depth: usize,
     ) -> usize {
-        if let Some(idx) = self.rule_index.get(rule_name) {
-            return self
-                .match_rule(&self.rules[*idx], all_features, cache)
-                .map(|m| m.locations.len())
-                .unwrap_or(0);
+        if let Some(&idx) = self.rule_index.get(rule_name) {
+            return self.count_single_rule_in_context(&self.rules[idx], ctx, all_features, cache, depth);
         }
         let prefix = format!("{}/", rule_name);
         self.rules
@@ -389,8 +593,7 @@ impl MatchEngine {
                     .as_ref()
                     .map_or(false, |ns| ns == rule_name || ns.starts_with(&prefix))
             })
-            .filter_map(|r| self.match_rule(r, all_features, cache))
-            .map(|m| m.locations.len())
+            .map(|r| self.count_single_rule_in_context(r, ctx, all_features, cache, depth))
             .sum()
     }
 

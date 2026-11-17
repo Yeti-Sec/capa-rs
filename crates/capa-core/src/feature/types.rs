@@ -144,6 +144,12 @@ pub struct FunctionFeatures {
     pub features: FeatureSet,
     /// Basic block features by index
     pub basic_blocks: HashMap<usize, FeatureSet>,
+    /// Instruction addresses belonging to each basic block (by basic block index)
+    #[serde(default)]
+    pub basic_block_instructions: HashMap<usize, Vec<Address>>,
+    /// Start virtual address of each basic block (by basic block index)
+    #[serde(default)]
+    pub basic_block_addresses: HashMap<usize, Address>,
     /// Instruction features by address
     pub instructions: HashMap<Address, FeatureSet>,
 }
@@ -155,8 +161,49 @@ impl FunctionFeatures {
             name: None,
             features: FeatureSet::new(),
             basic_blocks: HashMap::new(),
+            basic_block_instructions: HashMap::new(),
+            basic_block_addresses: HashMap::new(),
             instructions: HashMap::new(),
         }
+    }
+
+    /// True when synthetic unit-test fixtures populated only `self.features`
+    /// without building `basic_blocks` or `instructions` maps.
+    pub fn is_synthetic_func_only(&self) -> bool {
+        self.basic_blocks.is_empty() && self.instructions.is_empty()
+    }
+
+    /// Get a basic block's complete features, enriched with its own instructions'
+    /// `apis`, `operands`, `bytes_sequences`, `numbers`, `offsets`, and `strings`
+    /// (without duplicating additive `mnemonics` or `characteristic_counts` already
+    /// counted on `basic_blocks[&bb_idx]`).
+    pub fn basic_block_all_features(&self, bb_idx: usize) -> FeatureSet {
+        let mut merged = self.basic_blocks.get(&bb_idx).cloned().unwrap_or_default();
+        if let Some(addrs) = self.basic_block_instructions.get(&bb_idx) {
+            for addr in addrs {
+                if let Some(inst) = self.instructions.get(addr) {
+                    merged.apis.extend(inst.apis.iter().cloned());
+                    merged.numbers.extend(inst.numbers.iter().cloned());
+                    merged.offsets.extend(inst.offsets.iter().cloned());
+                    merged.strings.extend(inst.strings.iter().cloned());
+                    merged.operands.extend(inst.operands.iter().cloned());
+                    merged.bytes_sequences.extend(inst.bytes_sequences.iter().cloned());
+                    merged.classes.extend(inst.classes.iter().cloned());
+                    merged.namespaces.extend(inst.namespaces.iter().cloned());
+                    merged.properties.extend(inst.properties.iter().cloned());
+                    for (&c, &n) in &inst.characteristic_counts {
+                        if n > 0 && !merged.characteristic_counts.contains_key(&c) {
+                            merged.characteristics.insert(c);
+                            merged.characteristic_counts.insert(c, n);
+                        }
+                    }
+                    for &c in &inst.characteristics {
+                        merged.characteristics.insert(c);
+                    }
+                }
+            }
+        }
+        merged
     }
 
     /// Get all features merged (function + basic blocks + instructions)

@@ -268,6 +268,13 @@ impl BinaryExtractor {
                 func_features.features.add_characteristic(CharacteristicType::CallsTo);
             }
 
+            // Outgoing unique call targets count (`calls from`), deduplicated by target
+            // address to match Python capa's `FeatureSet[Characteristic("calls from")]` set.
+            let unique_callees: std::collections::HashSet<u64> = func.callees.iter().copied().collect();
+            for _ in 0..unique_callees.len() {
+                func_features.features.add_characteristic(CharacteristicType::CallsFrom);
+            }
+
             // Extract basic block features
             for bb in &func.basic_blocks {
                 let mut bb_features = self.extract_basic_block_features(bb, info, program);
@@ -283,6 +290,11 @@ impl BinaryExtractor {
                     // This block has tight loop with nzxor - good for XOR encryption detection
                 }
 
+                func_features.basic_block_addresses.insert(bb.index, Address(bb.address));
+                func_features.basic_block_instructions.insert(
+                    bb.index,
+                    bb.instructions.iter().map(|i| Address(i.address)).collect(),
+                );
                 func_features.basic_blocks.insert(bb.index, bb_features.clone());
 
                 // Roll up set-valued summary fields to function level without
@@ -416,10 +428,9 @@ impl BinaryExtractor {
             }
         }
 
-        // Check for outgoing and indirect calls (counted per call instruction)
+        // Check for indirect calls (counted per indirect call instruction)
         for insn in &bb.instructions {
             if insn.mnemonic == "call" {
-                features.add_characteristic(CharacteristicType::CallsFrom);
                 for op in &insn.operations {
                     if let ILOperation::Branch { target: None, is_call: true } = op {
                         features.add_characteristic(CharacteristicType::IndirectCall);
@@ -725,27 +736,34 @@ impl BinaryExtractor {
         let bracket_end = op_lower.find(']')?;
         let inside = &op_lower[bracket_start + 1..bracket_end];
 
-        if let Some(plus_pos) = inside.find('+') {
-            parse_number(inside[plus_pos + 1..].trim())
-        } else if let Some(minus_pos) = inside.find('-') {
-            parse_number(inside[minus_pos + 1..].trim()).map(|v| -v)
-        } else {
-            // Bare address like [0x30]
-            let trimmed = inside.trim();
-            if trimmed.starts_with("0x") || trimmed.chars().next().map_or(false, |c| c.is_ascii_digit()) {
-                parse_number(trimmed)
-            } else if !trimmed.is_empty()
-                && !trimmed.contains('*')
-                && trimmed.chars().next().map_or(false, |c| c.is_ascii_alphabetic())
-            {
-                // Register-indirect memory operand like [eax] / [rdi] (and
-                // zero-displacement forms IDA renders as [reg]) — displacement 0.
-                // Matches capa's operand-offset semantics and makes
-                // `operand[N].offset: 0` satisfiable (Fix C, e.g. PlugX module rule).
-                Some(0)
-            } else {
-                None
+        let last_plus = inside.rfind('+');
+        let last_minus = inside.rfind('-');
+        match (last_plus, last_minus) {
+            (Some(p), m) if m.map_or(true, |mp| p > mp) => {
+                parse_number(inside[p + 1..].trim())
             }
+            (_, Some(m)) => {
+                parse_number(inside[m + 1..].trim()).map(|v| -v)
+            }
+            (None, None) => {
+                // Bare address like [0x30]
+                let trimmed = inside.trim();
+                if trimmed.starts_with("0x") || trimmed.chars().next().map_or(false, |c| c.is_ascii_digit()) {
+                    parse_number(trimmed)
+                } else if !trimmed.is_empty()
+                    && !trimmed.contains('*')
+                    && trimmed.chars().next().map_or(false, |c| c.is_ascii_alphabetic())
+                {
+                    // Register-indirect memory operand like [eax] / [rdi] (and
+                    // zero-displacement forms IDA renders as [reg]) — displacement 0.
+                    // Matches capa's operand-offset semantics and makes
+                    // `operand[N].offset: 0` satisfiable (Fix C, e.g. PlugX module rule).
+                    Some(0)
+                } else {
+                    None
+                }
+            }
+            _ => None,
         }
     }
 
@@ -815,23 +833,27 @@ impl BinaryExtractor {
             };
             let inside = &op_lower[bracket_start + 1..bracket_end];
 
-            if let Some(plus_pos) = inside.find('+') {
-                // [reg+offset]
-                let offset_str = inside[plus_pos + 1..].trim();
-                if let Some(offset) = parse_number(offset_str) {
-                    offsets.push(offset);
+            let last_plus = inside.rfind('+');
+            let last_minus = inside.rfind('-');
+            match (last_plus, last_minus) {
+                (Some(p), m) if m.map_or(true, |mp| p > mp) => {
+                    let offset_str = inside[p + 1..].trim();
+                    if let Some(offset) = parse_number(offset_str) {
+                        offsets.push(offset);
+                    }
                 }
-            } else if let Some(minus_pos) = inside.find('-') {
-                // [reg-offset]
-                let offset_str = inside[minus_pos + 1..].trim();
-                if let Some(offset) = parse_number(offset_str) {
-                    offsets.push(-offset);
+                (_, Some(m)) => {
+                    let offset_str = inside[m + 1..].trim();
+                    if let Some(offset) = parse_number(offset_str) {
+                        offsets.push(-offset);
+                    }
                 }
-            } else {
-                // [0x401000] or bare address — extract number directly
-                let trimmed = inside.trim();
-                if let Some(offset) = parse_number(trimmed) {
-                    offsets.push(offset);
+                _ => {
+                    // [0x401000] or bare address — extract number directly
+                    let trimmed = inside.trim();
+                    if let Some(offset) = parse_number(trimmed) {
+                        offsets.push(offset);
+                    }
                 }
             }
         }
@@ -1403,5 +1425,94 @@ rule:
 
         let m_two = engine.match_rule_by_name("two or more nzxor", &extracted).expect("f_hmac must match >=2");
         assert_eq!(m_two.locations, vec![Address(0x3000)], "only f_hmac has >=2 nzxors");
+    }
+
+    #[test]
+    fn test_calls_from_deduplicates_unique_callees_and_sib_offsets_parse() {
+        use std::collections::HashMap;
+        use capa_core::rule::FormatType;
+
+        let extractor = BinaryExtractor::new();
+        assert_eq!(extractor.extract_operand_offset("[rcx+rax*4+0x20]"), Some(0x20));
+        assert_eq!(extractor.extract_operand_offset("[rcx+rax*4-0x8]"), Some(-0x8));
+
+        let info = crate::loader::BinaryInfo {
+            os: OsType::Windows,
+            arch: ArchType::Amd64,
+            format: FormatType::Pe,
+            imports: vec![],
+            exports: vec![],
+            sections: vec![],
+            strings: vec![],
+            is_dotnet: false,
+            has_forwarded_exports: false,
+            is_mixed_mode: false,
+            entry_point: 0x1000,
+        };
+
+        // Function at 0x1000 calls 0x2000 five times and 0x3000 twice (7 call insns, 2 unique targets)
+        let f_dedup = crate::lifter::LiftedFunction {
+            address: 0x1000,
+            name: Some("f_rc4".to_string()),
+            basic_blocks: vec![crate::lifter::LiftedBasicBlock {
+                index: 0,
+                address: 0x1000,
+                end_address: 0x1020,
+                instructions: vec![],
+                successors: vec![],
+                predecessors: vec![],
+                is_loop_header: false,
+            }],
+            callees: vec![0x2000, 0x2000, 0x2000, 0x2000, 0x2000, 0x3000, 0x3000],
+            callers: vec![],
+            is_thunk: false,
+            thunk_target: None,
+            is_library: false,
+        };
+
+        // Function at 0x4000 calls 5 distinct targets (exceeding RC4 PRGA `(0, 4)`)
+        let f_many = crate::lifter::LiftedFunction {
+            address: 0x4000,
+            name: Some("f_many".to_string()),
+            basic_blocks: vec![crate::lifter::LiftedBasicBlock {
+                index: 0,
+                address: 0x4000,
+                end_address: 0x4020,
+                instructions: vec![],
+                successors: vec![],
+                predecessors: vec![],
+                is_loop_header: false,
+            }],
+            callees: vec![0x5000, 0x5010, 0x5020, 0x5030, 0x5040],
+            callers: vec![],
+            is_thunk: false,
+            thunk_target: None,
+            is_library: false,
+        };
+
+        let mut functions = HashMap::new();
+        functions.insert(0x1000, f_dedup);
+        functions.insert(0x4000, f_many);
+        let program = crate::lifter::LiftedProgram {
+            functions,
+            entry_point: 0x1000,
+            info,
+            strings_at: HashMap::new(),
+            iat_entries: HashMap::new(),
+            thunk_targets: HashMap::new(),
+            import_apis_at: HashMap::new(),
+        };
+
+        let extracted = extractor.extract_from_lifted(&program, &[]);
+        assert_eq!(
+            extracted.functions[&Address(0x1000)].all_features().characteristic_count(&CharacteristicType::CallsFrom),
+            2,
+            "7 call instructions to 2 unique targets must count as 2 CallsFrom"
+        );
+        assert_eq!(
+            extracted.functions[&Address(0x4000)].all_features().characteristic_count(&CharacteristicType::CallsFrom),
+            5,
+            "5 distinct callee targets must count as 5 CallsFrom"
+        );
     }
 }

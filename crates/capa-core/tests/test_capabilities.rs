@@ -570,3 +570,209 @@ rule:
 
     assert!(!engine.match_all_sequential(&features).is_empty());
 }
+
+#[test]
+fn test_instruction_subscope_rejects_features_split_across_instructions() {
+    let yaml = r#"
+rule:
+    meta:
+        name: speck-style insn subscope
+        scopes:
+            static: function
+    features:
+        - instruction:
+            - mnemonic: cmp
+            - number: 0x1A
+"#;
+    let engine = MatchEngine::new(vec![parse_rule(yaml).unwrap()]);
+
+    // Negative: `cmp` on 0x401000 and `0x1A` on 0x401010 -> must NOT match
+    let mut neg = ExtractedFeatures::new(OsType::Windows, ArchType::Amd64, FormatType::Pe);
+    let mut f_neg = FunctionFeatures::new(ADDR1);
+    let mut i1 = FeatureSet::new();
+    i1.mnemonics.insert("cmp".to_string(), 1);
+    i1.numbers.insert(1);
+    let mut i2 = FeatureSet::new();
+    i2.mnemonics.insert("mov".to_string(), 1);
+    i2.numbers.insert(0x1A);
+    f_neg.instructions.insert(Address(0x401000), i1);
+    f_neg.instructions.insert(Address(0x401010), i2);
+    neg.functions.insert(ADDR1, f_neg);
+    assert!(
+        engine.match_all_sequential(&neg).is_empty(),
+        "instruction subscope must not match features split across separate instructions"
+    );
+
+    // Positive: `cmp` and `0x1A` on the same instruction -> MUST match
+    let mut pos = ExtractedFeatures::new(OsType::Windows, ArchType::Amd64, FormatType::Pe);
+    let mut f_pos = FunctionFeatures::new(ADDR2);
+    let mut i3 = FeatureSet::new();
+    i3.mnemonics.insert("cmp".to_string(), 1);
+    i3.numbers.insert(0x1A);
+    f_pos.instructions.insert(Address(0x402000), i3);
+    pos.functions.insert(ADDR2, f_pos);
+    let m = engine.match_all_sequential(&pos);
+    assert_eq!(m.len(), 1);
+    assert_eq!(m[0].locations, vec![ADDR2]);
+}
+
+#[test]
+fn test_basic_block_subscope_with_nested_instruction_and_operands() {
+    let yaml = r#"
+rule:
+    meta:
+        name: pe-sections-style bb subscope
+        scopes:
+            static: function
+    features:
+        - basic block:
+            - and:
+                - instruction:
+                    - mnemonic: movzx
+                    - operand[1].offset: 0x14
+                - operand[1].offset: 0x18
+"#;
+    let engine = MatchEngine::new(vec![parse_rule(yaml).unwrap()]);
+
+    // Negative: insn with operand[1].offset=0x14 in BB0, operand[1].offset=0x18 in BB1 -> must NOT match
+    let mut neg = ExtractedFeatures::new(OsType::Windows, ArchType::Amd64, FormatType::Pe);
+    let mut f_neg = FunctionFeatures::new(ADDR1);
+    f_neg.basic_blocks.insert(0, FeatureSet::new());
+    f_neg.basic_blocks.insert(1, FeatureSet::new());
+    f_neg.basic_block_instructions.insert(0, vec![Address(0x401000)]);
+    f_neg.basic_block_instructions.insert(1, vec![Address(0x401020)]);
+    let mut ins0 = FeatureSet::new();
+    ins0.mnemonics.insert("movzx".to_string(), 1);
+    ins0.operands.push((1, None, Some(0x14)));
+    let mut ins1 = FeatureSet::new();
+    ins1.mnemonics.insert("add".to_string(), 1);
+    ins1.operands.push((1, None, Some(0x18)));
+    f_neg.instructions.insert(Address(0x401000), ins0.clone());
+    f_neg.instructions.insert(Address(0x401020), ins1.clone());
+    neg.functions.insert(ADDR1, f_neg);
+    assert!(
+        engine.match_all_sequential(&neg).is_empty(),
+        "basic block subscope must not match operands split across different basic blocks"
+    );
+
+    // Positive: both instructions inside BB0 -> MUST match
+    let mut pos = ExtractedFeatures::new(OsType::Windows, ArchType::Amd64, FormatType::Pe);
+    let mut f_pos = FunctionFeatures::new(ADDR2);
+    f_pos.basic_blocks.insert(0, FeatureSet::new());
+    f_pos.basic_block_instructions.insert(0, vec![Address(0x402000), Address(0x402004)]);
+    f_pos.instructions.insert(Address(0x402000), ins0);
+    f_pos.instructions.insert(Address(0x402004), ins1);
+    pos.functions.insert(ADDR2, f_pos);
+    let m = engine.match_all_sequential(&pos);
+    assert_eq!(m.len(), 1);
+    assert_eq!(m[0].locations, vec![ADDR2]);
+}
+
+#[test]
+fn test_scoped_match_enforces_same_function_and_same_basic_block() {
+    let peb_rule = parse_rule(
+        r#"
+rule:
+    meta:
+        name: PEB access
+        lib: true
+        scopes:
+            static: basic block
+    features:
+        - characteristic: peb access
+"#,
+    ).unwrap();
+    let being_debugged = parse_rule(
+        r#"
+rule:
+    meta:
+        name: check for PEB BeingDebugged flag
+        scopes:
+            static: basic block
+    features:
+        - and:
+            - match: PEB access
+            - offset: 2
+"#,
+    ).unwrap();
+    let rwx = parse_rule(
+        r#"
+rule:
+    meta:
+        name: allocate RWX
+        scopes:
+            static: function
+    features:
+        - api: VirtualAlloc
+"#,
+    ).unwrap();
+    let thread = parse_rule(
+        r#"
+rule:
+    meta:
+        name: create thread
+        scopes:
+            static: function
+    features:
+        - api: CreateThread
+"#,
+    ).unwrap();
+    let spawn_rwx = parse_rule(
+        r#"
+rule:
+    meta:
+        name: spawn thread to RWX shellcode
+        scopes:
+            static: function
+    features:
+        - and:
+            - match: allocate RWX
+            - match: create thread
+"#,
+    ).unwrap();
+
+    let engine = MatchEngine::new(vec![peb_rule, being_debugged, rwx, thread, spawn_rwx]);
+
+    // Negative: Func1 has VirtualAlloc + BB0(peb access) + BB1(offset 2); Func2 has CreateThread.
+    // Neither `check for PEB BeingDebugged flag` nor `spawn thread to RWX shellcode` may match!
+    let mut neg = ExtractedFeatures::new(OsType::Windows, ArchType::Amd64, FormatType::Pe);
+    let mut f1 = FunctionFeatures::new(ADDR1);
+    f1.features.apis.insert("VirtualAlloc".to_string());
+    let mut bb0 = FeatureSet::new();
+    bb0.add_characteristic(CharacteristicType::Peb);
+    let mut bb1 = FeatureSet::new();
+    bb1.offsets.insert(2);
+    f1.basic_blocks.insert(0, bb0);
+    f1.basic_blocks.insert(1, bb1);
+    f1.basic_block_addresses.insert(0, Address(0x401000));
+    f1.basic_block_addresses.insert(1, Address(0x401020));
+
+    let mut f2 = FunctionFeatures::new(ADDR2);
+    f2.features.apis.insert("CreateThread".to_string());
+    f2.basic_blocks.insert(0, FeatureSet::new());
+
+    neg.functions.insert(ADDR1, f1);
+    neg.functions.insert(ADDR2, f2);
+
+    let neg_names: Vec<String> = engine.match_all_sequential(&neg).into_iter().map(|m| m.name).collect();
+    assert!(!neg_names.contains(&"check for PEB BeingDebugged flag".to_string()), "got {neg_names:?}");
+    assert!(!neg_names.contains(&"spawn thread to RWX shellcode".to_string()), "got {neg_names:?}");
+
+    // Positive: Func3 has VirtualAlloc + CreateThread, and BB0 has BOTH peb access + offset 2.
+    let mut pos = ExtractedFeatures::new(OsType::Windows, ArchType::Amd64, FormatType::Pe);
+    let mut f3 = FunctionFeatures::new(ADDR3);
+    f3.features.apis.insert("VirtualAlloc".to_string());
+    f3.features.apis.insert("CreateThread".to_string());
+    let mut bb_both = FeatureSet::new();
+    bb_both.add_characteristic(CharacteristicType::Peb);
+    bb_both.offsets.insert(2);
+    f3.basic_blocks.insert(0, bb_both);
+    f3.basic_block_addresses.insert(0, Address(0x403010));
+    pos.functions.insert(ADDR3, f3);
+
+    let pos_matches = engine.match_all_sequential(&pos);
+    let bd = pos_matches.iter().find(|m| m.name == "check for PEB BeingDebugged flag").expect("must match BB");
+    assert_eq!(bd.locations, vec![Address(0x403010)]);
+    let sr = pos_matches.iter().find(|m| m.name == "spawn thread to RWX shellcode").expect("must match Func3");
+    assert_eq!(sr.locations, vec![ADDR3]);
+}
