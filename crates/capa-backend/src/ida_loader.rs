@@ -273,15 +273,91 @@ fn extract_sections(idb: &IDB) -> Vec<SectionInfo> {
     sections
 }
 
-/// Extract strings from IDA's string list.
+/// Decode raw bytes from IDA into a clean UTF-8 `String`, handling both UTF-16LE wide
+/// strings (`[lo, 0x00, ...]` terminated by `0x0000`) and null-terminated ASCII/UTF-8 strings.
+/// When `strict_printable_null_term` is true (used when probing unlabeled `DataRefsFrom` targets),
+/// requires >= 4 strictly printable characters terminated by a null terminator within `buf`.
+pub(crate) fn decode_ida_string_bytes(buf: &[u8], strict_printable_null_term: bool) -> Option<String> {
+    if buf.len() < 4 {
+        return None;
+    }
+
+    let is_printable_byte = |b: u8| (0x20..=0x7E).contains(&b) || matches!(b, b'\t' | b'\r' | b'\n');
+
+    // 1. Check for UTF-16LE wide string (e.g. Windows wide paths `L"\\\\?\\C:\\foo:bar"`)
+    if buf.len() >= 8 && buf[1] == 0 && buf[3] == 0 && is_printable_byte(buf[0]) && is_printable_byte(buf[2]) {
+        let mut units = Vec::new();
+        let mut found_nul = false;
+        let mut all_ascii_printable = true;
+        for chunk in buf.chunks_exact(2) {
+            let u = u16::from_le_bytes([chunk[0], chunk[1]]);
+            if u == 0 {
+                found_nul = true;
+                break;
+            }
+            if u > 0x7E || !is_printable_byte(u as u8) {
+                all_ascii_printable = false;
+                if strict_printable_null_term {
+                    break;
+                }
+            }
+            units.push(u);
+        }
+        if units.len() >= 4 && (!strict_printable_null_term || (found_nul && all_ascii_printable)) {
+            if let Ok(s) = String::from_utf16(&units) {
+                let trimmed = s.trim_end_matches('\0');
+                if trimmed.chars().count() >= 4 {
+                    return Some(trimmed.to_string());
+                }
+            }
+        }
+    }
+
+    // 2. Check for null-terminated ASCII / UTF-8 string
+    let nul_pos = buf.iter().position(|&b| b == 0);
+    if strict_printable_null_term {
+        let end = nul_pos?;
+        if end < 4 || !buf[..end].iter().all(|&b| is_printable_byte(b)) {
+            return None;
+        }
+        return std::str::from_utf8(&buf[..end]).ok().map(|s| s.to_string());
+    }
+
+    let slice = match nul_pos {
+        Some(end) => &buf[..end],
+        None => buf,
+    };
+    let s = String::from_utf8_lossy(slice);
+    let trimmed = s.trim_end_matches('\0');
+    if trimmed.len() >= 4 {
+        Some(trimmed.to_string())
+    } else {
+        None
+    }
+}
+
+/// Extract strings from IDA's string list, properly decoding UTF-16LE and stripping `\0`.
 fn extract_strings(idb: &IDB) -> Vec<StringInfo> {
     let mut strings = Vec::new();
     let strlist = idb.strings();
     strlist.rebuild();
 
-    for (addr, value) in strlist.iter() {
-        if value.len() >= 4 {
-            strings.push(StringInfo { value, address: addr });
+    for (addr, raw_lossy) in strlist.iter() {
+        let read_len = raw_lossy.len().max(16).min(4096);
+        let raw = idb.get_bytes(addr, read_len);
+        if let Some(decoded) = decode_ida_string_bytes(&raw, false) {
+            strings.push(StringInfo {
+                value: decoded,
+                address: addr,
+            });
+        } else {
+            let cleaned = raw_lossy.trim_end_matches('\0');
+            if cleaned.len() >= 4 && !cleaned.contains('\0') {
+                strings.push(StringInfo {
+                    value: cleaned.to_string(),
+                    address: addr,
+                });
+            }
         }
     }
 
@@ -318,5 +394,31 @@ mod tests {
         assert_eq!(clean_ida_import_symbol("__tailMerge_netapi32_dll"), None);
         assert_eq!(clean_ida_import_symbol("sub_140001000"), None);
         assert_eq!(clean_ida_import_symbol("?mangled@@YAXZ"), None);
+    }
+
+    #[test]
+    fn test_decode_ida_string_bytes_utf16le_and_ascii_and_rejects_binary_guid() {
+        let wide_stream: Vec<u8> = "\\\\?\\C:\\temp\\payload.bin:ads"
+            .encode_utf16()
+            .chain(std::iter::once(0u16))
+            .flat_map(|u| u.to_le_bytes())
+            .collect();
+        assert_eq!(
+            decode_ida_string_bytes(&wide_stream, true),
+            Some("\\\\?\\C:\\temp\\payload.bin:ads".to_string())
+        );
+
+        let ascii = b"NetShareEnum\0garbage";
+        assert_eq!(
+            decode_ida_string_bytes(ascii, true),
+            Some("NetShareEnum".to_string())
+        );
+
+        // Binary COM GUID bytes must NOT be misclassified as a strict printable string
+        let guid = [
+            0x9F, 0x36, 0x87, 0x0F, 0xE5, 0xA4, 0xFC, 0x4C,
+            0xBD, 0x3E, 0x73, 0xE6, 0x15, 0x45, 0x72, 0xDD,
+        ];
+        assert_eq!(decode_ida_string_bytes(&guid, true), None);
     }
 }

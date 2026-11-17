@@ -391,13 +391,11 @@ fn has_cfg_loop(blocks: &[LiftedBasicBlock]) -> bool {
     false
 }
 
-/// True for `ret`/`retn` or instructions modifying `sp`/`esp`/`rsp` (excluded from
-/// `number:` and `add -> offset:` extraction in Python capa `insn.py`).
-fn is_sp_or_ret_insn(insn: &crate::lifter::LiftedInstruction) -> bool {
-    if insn.mnemonic.starts_with("ret") {
-        return true;
-    }
-    if !matches!(insn.mnemonic.as_str(), "cmp" | "test" | "push") {
+/// True for `add sp/esp/rsp, imm` stack-cleanup instructions (matching Python capa
+/// `viv/insn.py` line 487: `insn.mnem == "add" and oper0 in (ESP, RSP)`), while keeping
+/// `retn 4` / `sub esp, 4` immediates intact (`allocate or change RW memory`).
+fn is_add_sp_insn(insn: &crate::lifter::LiftedInstruction) -> bool {
+    if insn.mnemonic == "add" {
         if let Some(dst) = insn.operands.first() {
             let d = dst.trim().to_lowercase();
             if matches!(d.as_str(), "sp" | "esp" | "rsp") {
@@ -406,6 +404,126 @@ fn is_sp_or_ret_insn(insn: &crate::lifter::LiftedInstruction) -> bool {
         }
     }
     false
+}
+
+/// True when a memory operand uses a stack/frame base register (`sp`/`esp`/`rsp`/`bp`/`ebp`/`rbp`)
+/// without an `fs:`/`gs:` segment prefix (stack variables are excluded from `Offset` and
+/// `OperandOffset` extraction in both `ida/insn.py` and `viv/insn.py`).
+fn is_stack_frame_mem_operand(op: &str) -> bool {
+    let op_lower = op.to_lowercase();
+    if op_lower.contains("fs:") || op_lower.contains("gs:") {
+        return false;
+    }
+    let Some(b_start) = op_lower.find('[') else {
+        return false;
+    };
+    let Some(b_end) = op_lower.find(']') else {
+        return false;
+    };
+    let inside = op_lower[b_start + 1..b_end].trim();
+    let base_tok = inside.split(['+', '-']).next().unwrap_or("").trim();
+    matches!(base_tok, "sp" | "esp" | "rsp" | "bp" | "ebp" | "rbp")
+}
+
+/// Map x86/x64 GPR sub-registers to a canonical 64-bit register family key for
+/// intra-procedural `mov reg, [IAT] -> call reg` tracking.
+fn canonical_gpr(op: &str) -> Option<&'static str> {
+    match op.trim().to_lowercase().as_str() {
+        "rax" | "eax" | "ax" | "al" => Some("rax"),
+        "rbx" | "ebx" | "bx" | "bl" => Some("rbx"),
+        "rcx" | "ecx" | "cx" | "cl" => Some("rcx"),
+        "rdx" | "edx" | "dx" | "dl" => Some("rdx"),
+        "rsi" | "esi" | "si" | "sil" => Some("rsi"),
+        "rdi" | "edi" | "di" | "dil" => Some("rdi"),
+        "rbp" | "ebp" | "bp" | "bpl" => Some("rbp"),
+        "r8" | "r8d" | "r8w" | "r8b" => Some("r8"),
+        "r9" | "r9d" | "r9w" | "r9b" => Some("r9"),
+        "r10" | "r10d" | "r10w" | "r10b" => Some("r10"),
+        "r11" | "r11d" | "r11w" | "r11b" => Some("r11"),
+        "r12" | "r12d" | "r12w" | "r12b" => Some("r12"),
+        "r13" | "r13d" | "r13w" | "r13b" => Some("r13"),
+        "r14" | "r14d" | "r14w" | "r14b" => Some("r14"),
+        "r15" | "r15d" | "r15w" | "r15b" => Some("r15"),
+        _ => None,
+    }
+}
+
+/// Propagate `mov reg, [IAT]` across a function's CFG so register-indirect `call reg` /
+/// `jmp reg` instructions (e.g. `mov rbx, [__imp_getenv]; ...; call rbx`) emit the
+/// resolved API at the `call`/`jmp` site without emitting false APIs on data loads.
+fn resolve_reg_indirect_iat_calls(
+    extractor: &BinaryExtractor,
+    func: &crate::lifter::LiftedFunction,
+    info: &BinaryInfo,
+    program: &LiftedProgram,
+) -> std::collections::HashMap<u64, Vec<(Option<String>, String)>> {
+    use std::collections::HashMap;
+    let mut resolved_at: HashMap<u64, Vec<(Option<String>, String)>> = HashMap::new();
+    if func.basic_blocks.is_empty() {
+        return resolved_at;
+    }
+
+    let mut in_envs: HashMap<usize, HashMap<&'static str, (Option<String>, String)>> = HashMap::new();
+
+    for pass in 0..2 {
+        for bb in &func.basic_blocks {
+            let mut env = in_envs.get(&bb.index).cloned().unwrap_or_default();
+            for insn in &bb.instructions {
+                if insn.mnemonic == "mov" && insn.operands.len() >= 2 {
+                    if let Some(dst_reg) = canonical_gpr(&insn.operands[0]) {
+                        let src = &insn.operands[1];
+                        let mut loaded: Option<(Option<String>, String)> = None;
+                        if src.contains('[') && src.contains("0x") {
+                            if let Some(addr) = extractor.parse_memory_address(src, insn.address, insn.bytes.len()) {
+                                if let Some(entry) = program.iat_entries.get(&addr) {
+                                    loaded = Some(entry.clone());
+                                } else if let Some(imp) = info.imports.iter().find(|i| i.address == addr) {
+                                    loaded = Some((imp.module.clone(), imp.name.clone()));
+                                }
+                            }
+                        } else if let Some(src_reg) = canonical_gpr(src) {
+                            loaded = env.get(src_reg).cloned();
+                        }
+                        if let Some(val) = loaded {
+                            env.insert(dst_reg, val);
+                        } else {
+                            env.remove(dst_reg);
+                        }
+                    }
+                } else if insn.mnemonic == "call" || insn.mnemonic == "jmp" {
+                    if let Some(op0) = insn.operands.first() {
+                        if let Some(reg) = canonical_gpr(op0) {
+                            if pass == 1 {
+                                if let Some(entry) = env.get(reg) {
+                                    resolved_at.entry(insn.address).or_default().push(entry.clone());
+                                }
+                            }
+                        }
+                    }
+                    if insn.mnemonic == "call" {
+                        for scratch in ["rax", "rcx", "rdx", "r8", "r9", "r10", "r11"] {
+                            env.remove(scratch);
+                        }
+                    }
+                } else if !matches!(insn.mnemonic.as_str(), "cmp" | "test" | "push" | "nop") {
+                    if let Some(op0) = insn.operands.first() {
+                        if let Some(dst_reg) = canonical_gpr(op0) {
+                            env.remove(dst_reg);
+                        }
+                    }
+                }
+            }
+
+            for &succ_idx in &bb.successors {
+                let succ_in = in_envs.entry(succ_idx).or_default();
+                for (&k, v) in &env {
+                    succ_in.entry(k).or_insert_with(|| v.clone());
+                }
+            }
+        }
+    }
+
+    resolved_at
 }
 
 /// True when `op` is a single-base register + displacement (`[r8+0x10]` or `[rcx-0x30]`)
@@ -518,9 +636,19 @@ impl BinaryExtractor {
                 func_features.features.add_characteristic(CharacteristicType::CallsFrom);
             }
 
+            // Propagate `mov reg, [IAT] -> call reg / jmp reg` across CFG blocks
+            let reg_indirect_apis_at = resolve_reg_indirect_iat_calls(self, func, info, program);
+
             // Extract basic block features
             for bb in &func.basic_blocks {
                 let mut bb_features = self.extract_basic_block_features(bb, info, program);
+                for insn in &bb.instructions {
+                    if let Some(reg_apis) = reg_indirect_apis_at.get(&insn.address) {
+                        for (module, name) in reg_apis {
+                            insert_api(&mut bb_features.apis, module, name);
+                        }
+                    }
+                }
 
                 // Detect stack string construction at BB scope
                 if self.detect_stack_strings_in_bb(bb) {
@@ -552,7 +680,12 @@ impl BinaryExtractor {
             // Extract instruction features
             for bb in &func.basic_blocks {
                 for insn in &bb.instructions {
-                    let insn_features = self.extract_instruction_features(insn, info, program, bytes, &va_map);
+                    let mut insn_features = self.extract_instruction_features(insn, info, program, bytes, &va_map);
+                    if let Some(reg_apis) = reg_indirect_apis_at.get(&insn.address) {
+                        for (module, name) in reg_apis {
+                            insert_api(&mut insn_features.apis, module, name);
+                        }
+                    }
                     func_features.instructions.insert(Address(insn.address), insn_features.clone());
                 }
             }
@@ -604,9 +737,9 @@ impl BinaryExtractor {
             *features.mnemonics.entry(insn.mnemonic.clone()).or_insert(0) += 1;
         }
 
-        // Collect numeric constants (excluding `ret`/`retn` and SP-modifying instructions)
+        // Collect numeric constants (excluding `add sp/esp/rsp, imm`)
         for insn in &bb.instructions {
-            if is_sp_or_ret_insn(insn) {
+            if is_add_sp_insn(insn) {
                 continue;
             }
             for val in insn.operand_values.iter().flatten() {
@@ -688,11 +821,13 @@ impl BinaryExtractor {
                     }
                 }
             }
-            // Check operand_values for string pointers too
-            for val in insn.operand_values.iter().flatten() {
-                let addr = *val as u64;
-                if let Some(s) = program.strings_at.get(&addr) {
-                    features.strings.insert(s.clone());
+            // Check operand_values for string pointers too (skipping branch/call targets)
+            if insn.mnemonic != "call" && !insn.mnemonic.starts_with('j') {
+                for val in insn.operand_values.iter().flatten() {
+                    let addr = *val as u64;
+                    if let Some(s) = program.strings_at.get(&addr) {
+                        features.strings.insert(s.clone());
+                    }
                 }
             }
         }
@@ -836,7 +971,7 @@ impl BinaryExtractor {
             }
         }
 
-        let skip_numbers = is_sp_or_ret_insn(insn);
+        let skip_numbers = is_add_sp_insn(insn);
         let max_ops = insn.operand_values.len().max(insn.operands.len());
 
         // Operand values and offsets
@@ -1092,6 +1227,9 @@ impl BinaryExtractor {
 
     /// Extract the offset/displacement value from a single operand string.
     fn extract_operand_offset(&self, op: &str) -> Option<i64> {
+        if is_stack_frame_mem_operand(op) {
+            return None;
+        }
         let op_lower = op.to_lowercase();
         let bracket_start = op_lower.find('[')?;
         let bracket_end = op_lower.find(']')?;
@@ -1181,6 +1319,9 @@ impl BinaryExtractor {
         let mut offsets = Vec::new();
 
         for op in &insn.operands {
+            if is_stack_frame_mem_operand(op) {
+                continue;
+            }
             let op_lower = op.to_lowercase();
 
             // Find the bracketed portion, stripping any segment prefix (fs:, gs:)
@@ -2194,5 +2335,140 @@ rule:
         assert!(names.contains("schedule task via ITaskService"));
         assert!(names.contains("get process heap flags"));
         assert!(names.contains("encrypt data using speck"));
+    }
+
+    #[test]
+    fn test_stack_frame_offsets_excluded_and_reg_indirect_iat_calls_resolved() {
+        use std::collections::HashMap;
+        use capa_core::rule::FormatType;
+
+        let extractor = BinaryExtractor::new();
+        // Stack/frame registers must NOT emit struct offsets, except segment-prefixed TEB/PEB
+        assert_eq!(extractor.extract_operand_offset("[rsp]"), None);
+        assert_eq!(extractor.extract_operand_offset("[rsp+0x30]"), None);
+        assert_eq!(extractor.extract_operand_offset("[ebp-0x10]"), None);
+        assert_eq!(extractor.extract_operand_offset("gs:[0x60]"), Some(0x60));
+        assert_eq!(extractor.extract_operand_offset("[rax]"), Some(0));
+        assert_eq!(extractor.extract_operand_offset("[rcx+0x30]"), Some(0x30));
+
+        let info = crate::loader::BinaryInfo {
+            os: OsType::Windows,
+            arch: ArchType::Amd64,
+            format: FormatType::Pe,
+            imports: vec![
+                crate::loader::ImportInfo {
+                    name: "getenv".to_string(),
+                    module: Some("msvcrt.dll".to_string()),
+                    address: 0x200100,
+                },
+                crate::loader::ImportInfo {
+                    name: "_wpgmptr".to_string(),
+                    module: Some("msvcrt.dll".to_string()),
+                    address: 0x200200,
+                },
+            ],
+            exports: vec![],
+            sections: vec![],
+            strings: vec![],
+            is_dotnet: false,
+            has_forwarded_exports: false,
+            is_mixed_mode: false,
+            entry_point: 0x1000,
+        };
+
+        let bb0 = crate::lifter::LiftedBasicBlock {
+            index: 0,
+            address: 0x1000,
+            end_address: 0x1010,
+            instructions: vec![
+                crate::lifter::LiftedInstruction {
+                    address: 0x1000,
+                    mnemonic: "mov".to_string(),
+                    operands: vec!["rbx".to_string(), "[0x200100]".to_string()],
+                    operand_values: vec![None, None],
+                    bytes: vec![0x48, 0x8B, 0x1D],
+                    operations: vec![],
+                },
+                crate::lifter::LiftedInstruction {
+                    address: 0x1007,
+                    mnemonic: "mov".to_string(),
+                    operands: vec!["rax".to_string(), "[0x200200]".to_string()],
+                    operand_values: vec![None, None],
+                    bytes: vec![0x48, 0x8B, 0x05],
+                    operations: vec![],
+                },
+            ],
+            successors: vec![1],
+            predecessors: vec![],
+            is_loop_header: false,
+        };
+        let bb1 = crate::lifter::LiftedBasicBlock {
+            index: 1,
+            address: 0x1020,
+            end_address: 0x1030,
+            instructions: vec![
+                crate::lifter::LiftedInstruction {
+                    address: 0x1020,
+                    mnemonic: "call".to_string(),
+                    operands: vec!["rbx".to_string()],
+                    operand_values: vec![None],
+                    bytes: vec![0xFF, 0xD3],
+                    operations: vec![ILOperation::Branch {
+                        target: None,
+                        is_call: true,
+                    }],
+                },
+                crate::lifter::LiftedInstruction {
+                    address: 0x1022,
+                    mnemonic: "ret".to_string(),
+                    operands: vec!["0x4".to_string()],
+                    operand_values: vec![Some(4)],
+                    bytes: vec![0xC2, 0x04, 0x00],
+                    operations: vec![],
+                },
+            ],
+            successors: vec![],
+            predecessors: vec![0],
+            is_loop_header: false,
+        };
+
+        let mut functions = HashMap::new();
+        functions.insert(
+            0x1000,
+            crate::lifter::LiftedFunction {
+                address: 0x1000,
+                name: Some("f_env".to_string()),
+                basic_blocks: vec![bb0, bb1],
+                callees: vec![],
+                callers: vec![],
+                is_thunk: false,
+                thunk_target: None,
+                is_library: false,
+            },
+        );
+        let mut iat_entries = HashMap::new();
+        iat_entries.insert(0x200100, (Some("msvcrt".to_string()), "getenv".to_string()));
+        iat_entries.insert(0x200200, (Some("msvcrt".to_string()), "_wpgmptr".to_string()));
+
+        let program = crate::lifter::LiftedProgram {
+            functions,
+            entry_point: 0x1000,
+            info,
+            strings_at: HashMap::new(),
+            iat_entries,
+            thunk_targets: HashMap::new(),
+            import_apis_at: HashMap::new(),
+            insn_strings_at: HashMap::new(),
+            insn_bytes_at: HashMap::new(),
+        };
+
+        let extracted = extractor.extract_from_lifted(&program, &[]);
+        let f = &extracted.functions[&Address(0x1000)];
+        // Positive: `call rbx` at 0x1020 resolves `getenv`, and `ret 4` preserves `number: 4`
+        assert!(f.instructions[&Address(0x1020)].apis.contains("getenv"));
+        assert!(f.basic_block_all_features(1).apis.contains("getenv"));
+        assert!(f.basic_block_all_features(1).numbers.contains(&4));
+        // Negative: `_wpgmptr` loaded into `rax` without `call rax` must NOT appear in apis
+        assert!(!f.all_features().apis.contains("_wpgmptr"));
     }
 }

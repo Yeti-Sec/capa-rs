@@ -68,22 +68,36 @@ impl IdaExtractor {
 
         let mut info = load_from_idb(&idb);
 
-        // Fix D: augment IDA's string list (idb.strings()) with a raw whole-image
-        // ASCII/UTF-16 scan — mapping raw file offsets to virtual addresses so both
-        // file-scope and basic-block/instruction-scope string xref lookups (`strings_at`)
-        // resolve strings IDA never created as items (e.g. NTFS alternate data stream paths).
-        let va_map = crate::extractor::BinaryVaMap::from_bytes(&bytes);
-        for s in crate::strings::extract_ascii_strings(&bytes, 4) {
-            let addr = va_map.file_offset_to_va(s.offset).unwrap_or(s.offset);
-            info.strings.push(crate::loader::StringInfo { value: s.value, address: addr });
-        }
-        for s in crate::strings::extract_unicode_strings(&bytes, 4) {
-            let addr = va_map.file_offset_to_va(s.offset).unwrap_or(s.offset);
-            info.strings.push(crate::loader::StringInfo { value: s.value, address: addr });
+        // Augment `info.imports` with PE Delay-Import Directory (`DataDirectory[13]`)
+        // entries parsed directly from the PE image (both delay-IAT slot VAs and
+        // initial `__imp_load_*` helper stub VAs), matching Vivisect's delay-import coverage.
+        let delay_imports = crate::loader::extract_pe_delay_imports_from_bytes(&bytes);
+        if !delay_imports.is_empty() {
+            let mut existing: std::collections::HashSet<(String, u64)> = info
+                .imports
+                .iter()
+                .map(|i| (i.name.clone(), i.address))
+                .collect();
+            for di in delay_imports {
+                if existing.insert((di.name.clone(), di.address)) {
+                    info.imports.push(di);
+                }
+            }
         }
 
         let program = lift_from_idb(&idb, info);
-        let features = self.extractor.extract_from_lifted(&program, &bytes);
+        let mut features = self.extractor.extract_from_lifted(&program, &bytes);
+
+        // Augment file-scope strings with raw whole-image ASCII/UTF-16 strings AFTER
+        // function/BB lifting so accidental 4-byte ASCII sequences inside `.text` code
+        // never pollute `strings_at` pointer lookups (avoiding false function-scope
+        // hits such as `.boto`), while keeping file-scope string coverage complete.
+        for s in crate::strings::extract_ascii_strings(&bytes, 4) {
+            features.file.strings.insert(s.value);
+        }
+        for s in crate::strings::extract_unicode_strings(&bytes, 4) {
+            features.file.strings.insert(s.value);
+        }
 
         Ok(features)
     }

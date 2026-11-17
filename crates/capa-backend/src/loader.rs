@@ -133,7 +133,7 @@ fn load_pe(pe: &goblin::pe::PE, bytes: &[u8]) -> Result<BinaryInfo, LoaderError>
         ArchType::I386
     };
 
-    // Extract imports
+    // Extract imports (standard IAT + PE delay-load imports in DataDirectory[13])
     let mut imports = Vec::new();
     for import in &pe.imports {
         imports.push(ImportInfo {
@@ -142,6 +142,7 @@ fn load_pe(pe: &goblin::pe::PE, bytes: &[u8]) -> Result<BinaryInfo, LoaderError>
             address: import.offset as u64,
         });
     }
+    imports.extend(extract_pe_delay_imports(pe, bytes));
 
     // Check for .NET CLR imports (indicates managed code)
     let has_clr_import = imports.iter().any(|i| {
@@ -381,6 +382,208 @@ fn extract_strings(bytes: &[u8]) -> Vec<StringInfo> {
     }
 
     strings
+}
+
+/// Parse PE `IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT` (`DataDirectory[13]`) descriptors,
+/// returning `ImportInfo` entries at both the delay-load IAT slot VA and the initial
+/// on-disk `__imp_load_<name>` helper stub VA.
+#[cfg_attr(not(feature = "ida-backend"), allow(dead_code))]
+pub(crate) fn extract_pe_delay_imports_from_bytes(bytes: &[u8]) -> Vec<ImportInfo> {
+    if let Ok(Object::PE(pe)) = Object::parse(bytes) {
+        extract_pe_delay_imports(&pe, bytes)
+    } else {
+        Vec::new()
+    }
+}
+
+pub(crate) fn extract_pe_delay_imports(pe: &goblin::pe::PE, bytes: &[u8]) -> Vec<ImportInfo> {
+    let mut out = Vec::new();
+    if bytes.len() < 0x40 || &bytes[0..2] != b"MZ" {
+        return out;
+    }
+    let e_lfanew = u32::from_le_bytes([bytes[0x3c], bytes[0x3d], bytes[0x3e], bytes[0x3f]]) as usize;
+    let opt_off = match e_lfanew.checked_add(24) {
+        Some(v) if v + 2 <= bytes.len() => v,
+        _ => return out,
+    };
+    let magic = u16::from_le_bytes([bytes[opt_off], bytes[opt_off + 1]]);
+    let (num_rva_off, dd_base) = match magic {
+        0x10b => (opt_off + 92, opt_off + 96),
+        0x20b => (opt_off + 108, opt_off + 112),
+        _ => return out,
+    };
+    if num_rva_off + 4 > bytes.len() {
+        return out;
+    }
+    let num_rva = u32::from_le_bytes([
+        bytes[num_rva_off],
+        bytes[num_rva_off + 1],
+        bytes[num_rva_off + 2],
+        bytes[num_rva_off + 3],
+    ]) as usize;
+    if num_rva <= 13 {
+        return out;
+    }
+    let dd13 = dd_base + 13 * 8;
+    if dd13 + 8 > bytes.len() {
+        return out;
+    }
+    let delay_rva = u32::from_le_bytes([bytes[dd13], bytes[dd13 + 1], bytes[dd13 + 2], bytes[dd13 + 3]]) as u64;
+    let delay_size = u32::from_le_bytes([bytes[dd13 + 4], bytes[dd13 + 5], bytes[dd13 + 6], bytes[dd13 + 7]]) as usize;
+    if delay_rva == 0 || delay_size < 32 {
+        return out;
+    }
+
+    let image_base = pe.image_base as u64;
+    let is_64 = pe.is_64;
+    let ptr_size: usize = if is_64 { 8 } else { 4 };
+
+    let rva_to_off = |rva: u64| -> Option<usize> {
+        for sec in &pe.sections {
+            let va = sec.virtual_address as u64;
+            let span = (sec.virtual_size.max(sec.size_of_raw_data)) as u64;
+            if rva >= va && rva < va + span {
+                let off = (sec.pointer_to_raw_data as u64).checked_add(rva - va)? as usize;
+                if off < bytes.len() {
+                    return Some(off);
+                }
+            }
+        }
+        None
+    };
+
+    let read_cstr = |off: usize| -> Option<String> {
+        if off >= bytes.len() {
+            return None;
+        }
+        let max_end = (off + 256).min(bytes.len());
+        let slice = &bytes[off..max_end];
+        let nul = slice.iter().position(|&b| b == 0)?;
+        if nul == 0 {
+            return None;
+        }
+        let s = std::str::from_utf8(&slice[..nul]).ok()?.trim();
+        if s.is_empty() {
+            None
+        } else {
+            Some(s.to_string())
+        }
+    };
+
+    let to_rva = |val: u64, attrs: u32| -> u64 {
+        if (attrs & 1) != 0 || val < image_base {
+            val
+        } else {
+            val - image_base
+        }
+    };
+
+    let mut seen = std::collections::HashSet::new();
+    let max_descs = (delay_size / 32).min(256);
+    for idx in 0..max_descs {
+        let Some(desc_off) = rva_to_off(delay_rva + (idx * 32) as u64) else {
+            break;
+        };
+        if desc_off + 32 > bytes.len() {
+            break;
+        }
+        let d = &bytes[desc_off..desc_off + 32];
+        let attrs = u32::from_le_bytes([d[0], d[1], d[2], d[3]]);
+        let dll_raw = u32::from_le_bytes([d[4], d[5], d[6], d[7]]) as u64;
+        let iat_raw = u32::from_le_bytes([d[12], d[13], d[14], d[15]]) as u64;
+        let int_raw = u32::from_le_bytes([d[16], d[17], d[18], d[19]]) as u64;
+        if dll_raw == 0 || iat_raw == 0 || int_raw == 0 {
+            break;
+        }
+
+        let Some(dll_off) = rva_to_off(to_rva(dll_raw, attrs)) else {
+            continue;
+        };
+        let Some(raw_dll) = read_cstr(dll_off) else {
+            continue;
+        };
+        let dll_lower = raw_dll.to_lowercase();
+        let module = Some(if dll_lower.contains('.') {
+            dll_lower
+        } else {
+            format!("{}.dll", dll_lower)
+        });
+
+        let iat_base_rva = to_rva(iat_raw, attrs);
+        let int_base_rva = to_rva(int_raw, attrs);
+
+        for slot in 0..4096usize {
+            let entry_disp = (slot * ptr_size) as u64;
+            let Some(int_off) = rva_to_off(int_base_rva + entry_disp) else {
+                break;
+            };
+            if int_off + ptr_size > bytes.len() {
+                break;
+            }
+            let thunk_val = if is_64 {
+                u64::from_le_bytes(bytes[int_off..int_off + 8].try_into().unwrap())
+            } else {
+                u32::from_le_bytes(bytes[int_off..int_off + 4].try_into().unwrap()) as u64
+            };
+            if thunk_val == 0 {
+                break;
+            }
+
+            let is_ordinal = if is_64 {
+                (thunk_val & (1u64 << 63)) != 0
+            } else {
+                (thunk_val & (1u64 << 31)) != 0
+            };
+            let func_name = if is_ordinal {
+                format!("#{}", thunk_val & 0xFFFF)
+            } else {
+                let hn_val = if is_64 {
+                    thunk_val & 0x7FFF_FFFF_FFFF_FFFF
+                } else {
+                    thunk_val & 0x7FFF_FFFF
+                };
+                let hn_rva = to_rva(hn_val, attrs);
+                let Some(hn_off) = rva_to_off(hn_rva) else {
+                    continue;
+                };
+                let Some(n) = read_cstr(hn_off + 2) else {
+                    continue;
+                };
+                n
+            };
+
+            let iat_slot_va = image_base.wrapping_add(iat_base_rva + entry_disp);
+            if seen.insert((func_name.clone(), iat_slot_va)) {
+                out.push(ImportInfo {
+                    name: func_name.clone(),
+                    module: module.clone(),
+                    address: iat_slot_va,
+                });
+            }
+
+            if let Some(iat_off) = rva_to_off(iat_base_rva + entry_disp) {
+                if iat_off + ptr_size <= bytes.len() {
+                    let stub_va = if is_64 {
+                        u64::from_le_bytes(bytes[iat_off..iat_off + 8].try_into().unwrap())
+                    } else {
+                        u32::from_le_bytes(bytes[iat_off..iat_off + 4].try_into().unwrap()) as u64
+                    };
+                    if stub_va >= image_base
+                        && stub_va != iat_slot_va
+                        && seen.insert((func_name.clone(), stub_va))
+                    {
+                        out.push(ImportInfo {
+                            name: func_name,
+                            module: module.clone(),
+                            address: stub_va,
+                        });
+                    }
+                }
+            }
+        }
+    }
+
+    out
 }
 
 #[cfg(test)]

@@ -224,7 +224,14 @@ pub(crate) fn lift_from_idb(idb: &IDB, info: BinaryInfo) -> LiftedProgram {
         let func_name = func.name();
         let flags = func.flags();
         let mut is_thunk = flags.contains(FunctionFlags::THUNK);
-        let is_library = flags.contains(FunctionFlags::LIB);
+        let is_msvc_lib_sym = func_name.as_deref().is_some_and(|n| {
+            n.starts_with('?')
+                && (n.contains("@ATL@@")
+                    || n.contains("@std@@")
+                    || n.starts_with("?_com_issue_error@@")
+                    || n.contains("@_com_error@@"))
+        });
+        let is_library = flags.contains(FunctionFlags::LIB) || is_msvc_lib_sym;
 
         // Build CFG and lift basic blocks
         let (basic_blocks, callees) = match func.cfg() {
@@ -297,10 +304,10 @@ pub(crate) fn lift_from_idb(idb: &IDB, info: BinaryInfo) -> LiftedProgram {
     }
 
     // Build IAT entries, string maps, import call xrefs, and data-xref string/bytes maps
-    let iat_entries = build_iat_map(&info);
+    let mut iat_entries = build_iat_map(&info);
     let strings_at = build_string_map(idb, &info);
     let thunk_targets = build_thunk_map(&functions);
-    let import_apis_at = build_import_xref_map(idb, &info, &functions);
+    let import_apis_at = build_import_xref_map(idb, &info, &functions, &mut iat_entries);
     let (insn_strings_at, insn_bytes_at) = build_insn_data_xref_maps(idb, &functions, &strings_at);
 
     LiftedProgram {
@@ -381,7 +388,8 @@ fn read_bytes_at_seg_bounded(idb: &IDB, ea: u64, max_len: usize) -> Vec<u8> {
     idb.get_bytes(ea, take)
 }
 
-/// Resolve per-instruction `DataRefsFrom` strings and byte slices (matching Python capa's
+/// Resolve per-instruction `DataRefsFrom` strings (including unlabeled UTF-16LE wide
+/// strings such as Windows stream paths) and byte slices (matching Python capa's
 /// `extract_insn_string_features` and `extract_insn_bytes_features`).
 fn build_insn_data_xref_maps(
     idb: &IDB,
@@ -400,15 +408,37 @@ fn build_insn_data_xref_maps(
                 if insn.mnemonic == "call" {
                     continue;
                 }
-                let Some(ref_ea) = follow_data_ref_chain(idb, insn.address, 10) else {
+                let initial_drefs = data_refs_from(idb, insn.address);
+                if initial_drefs.is_empty() {
                     continue;
-                };
-                if let Some(s) = strings_at.get(&ref_ea) {
-                    insn_strings.entry(insn.address).or_default().push(s.clone());
-                } else {
-                    let raw = read_bytes_at_seg_bounded(idb, ref_ea, 0x100);
-                    if !raw.is_empty() && raw.iter().any(|&b| b != 0) {
-                        insn_bytes.entry(insn.address).or_default().push(raw);
+                }
+                for first_ref in initial_drefs {
+                    if first_ref == insn.address || idb.segment_at(first_ref).is_none() {
+                        continue;
+                    }
+                    // Follow single-pointer deref chains (up to 9 additional hops)
+                    let ref_ea = follow_data_ref_chain(idb, first_ref, 9).unwrap_or(first_ref);
+                    if let Some(s) = strings_at.get(&ref_ea) {
+                        insn_strings.entry(insn.address).or_default().push(s.clone());
+                        continue;
+                    }
+                    let is_non_exec = idb
+                        .segment_at(ref_ea)
+                        .is_some_and(|seg| !seg.permissions().is_executable());
+                    let raw = read_bytes_at_seg_bounded(idb, ref_ea, 0x200);
+                    if raw.is_empty() {
+                        continue;
+                    }
+                    if is_non_exec {
+                        if let Some(probed_str) = crate::ida_loader::decode_ida_string_bytes(&raw, true) {
+                            insn_strings.entry(insn.address).or_default().push(probed_str);
+                            continue;
+                        }
+                    }
+                    let slice_len = raw.len().min(0x100);
+                    let slice = &raw[..slice_len];
+                    if slice.iter().any(|&b| b != 0) {
+                        insn_bytes.entry(insn.address).or_default().push(slice.to_vec());
                     }
                 }
             }
@@ -453,13 +483,14 @@ fn parse_bracket_hex(operand: &str) -> Option<u64> {
 }
 
 /// Resolve API targets for `call` and `jmp` instructions using IDA's `CodeRefsFrom` /
-/// `DataRefsFrom` chains (up to `THUNK_CHAIN_DEPTH_DELTA = 5`) plus IDA/FLIRT/delay-load
-/// named target functions (`FUNC_LIB` or `!name.starts_with("sub_")`), matching Python
-/// capa's `extract_insn_api_features` 1-for-1.
+/// `DataRefsFrom` chains (up to `THUNK_CHAIN_DEPTH_DELTA = 5`) plus FLIRT `FUNC_LIB`
+/// callees, while also populating `iat_entries` for `[0x<addr>]` import slots referenced
+/// by `mov reg, [IAT]` (so intra-procedural `call reg` resolution in `extractor.rs` works).
 fn build_import_xref_map(
     idb: &IDB,
     info: &BinaryInfo,
     functions: &HashMap<u64, LiftedFunction>,
+    iat_entries: &mut HashMap<u64, (Option<String>, String)>,
 ) -> HashMap<u64, Vec<(Option<String>, String)>> {
     const THUNK_CHAIN_DEPTH_DELTA: usize = 5;
 
@@ -486,6 +517,30 @@ fn build_import_xref_map(
         }
         for bb in &f.basic_blocks {
             for insn in &bb.instructions {
+                // Enrich `iat_entries` for `[0x<addr>]` IAT slots on `mov`/`lea` so
+                // `mov rbx, [__imp_getenv]; ...; call rbx` resolves at the `call` site
+                // without emitting false APIs on non-call instructions.
+                if insn.mnemonic == "mov" || insn.mnemonic == "lea" {
+                    for operand in &insn.operands {
+                        if let Some(addr) = parse_bracket_hex(operand) {
+                            if !iat_entries.contains_key(&addr) {
+                                let sym_hit = addr_sym_cache
+                                    .entry(addr)
+                                    .or_insert_with(|| {
+                                        idb.address_to_string(addr)
+                                            .and_then(|sym| match_import_symbol(&sym, &import_names))
+                                    })
+                                    .clone();
+                                if let Some(name) = sym_hit {
+                                    let module = name_to_module.get(&name).cloned().flatten();
+                                    iat_entries.insert(addr, (module, name));
+                                }
+                            }
+                        }
+                    }
+                    continue;
+                }
+
                 if insn.mnemonic != "call" && insn.mnemonic != "jmp" {
                     continue;
                 }
@@ -553,24 +608,28 @@ fn build_import_xref_map(
                     continue;
                 }
 
-                // 3. IDA/FLIRT/delay-load named function target (`FUNC_LIB` or `!name.starts_with("sub_")`,
-                // matching Python capa `insn.py` lines 117-135).
+                // 3. FLIRT-recognized `is_library` function target (matching Vivisect
+                // `if is_library_function(target): yield API(name)` without emitting false
+                // APIs on internal non-library COFF-named functions).
                 if let Some(target_ea) = code_refs_from(idb, insn.address).into_iter().next() {
                     if let Some(target_func) = functions.get(&target_ea) {
-                        if let Some(raw_name) = target_func.name.as_deref() {
-                            let name = raw_name.trim();
-                            if !name.is_empty()
-                                && (target_func.is_library || !name.starts_with("sub_"))
-                                && !name.starts_with("nullsub_")
-                                && !name.starts_with("loc_")
-                                && !name.starts_with("__security_check_cookie")
-                            {
-                                let entry_list = map.entry(insn.address).or_default();
-                                entry_list.push((None, name.to_string()));
-                                if let Some(cleaned) = crate::ida_loader::clean_ida_import_symbol(name) {
-                                    if cleaned != name {
-                                        let module = name_to_module.get(&cleaned).cloned().flatten();
-                                        entry_list.push((module, cleaned));
+                        if target_func.is_library {
+                            if let Some(raw_name) = target_func.name.as_deref() {
+                                let name = raw_name.trim();
+                                if !name.is_empty()
+                                    && !name.starts_with('?')
+                                    && !name.starts_with('$')
+                                    && !name.starts_with("nullsub_")
+                                    && !name.starts_with("loc_")
+                                    && !name.starts_with("__security_")
+                                {
+                                    let entry_list = map.entry(insn.address).or_default();
+                                    entry_list.push((None, name.to_string()));
+                                    if let Some(cleaned) = crate::ida_loader::clean_ida_import_symbol(name) {
+                                        if cleaned != name {
+                                            let module = name_to_module.get(&cleaned).cloned().flatten();
+                                            entry_list.push((module, cleaned));
+                                        }
                                     }
                                 }
                             }
