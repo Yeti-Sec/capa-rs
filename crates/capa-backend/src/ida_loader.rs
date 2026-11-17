@@ -125,14 +125,56 @@ fn normalize_import_module(raw: &str) -> Option<String> {
     }
 }
 
-/// Extract imports using IDA's native import enumeration API.
-///
-/// This uses `get_import_module_qty()` + `enum_import_names()` to get
-/// proper module→function mappings (e.g., kernel32.dll → CreateFileA),
-/// which is essential for matching capa rules that use `api: module.function`.
-///
-/// Falls back to name-list walking for any imports not covered by the
-/// native API (e.g., ELF .plt thunks).
+/// Clean an IDA import or thunk symbol name into a bare API identifier.
+/// Strips `j_`, `__imp_load_`, `__imp_`, leading `.` / `_` (for 32-bit stdcall
+/// `_CreateFileA@28`), and `@<stack_bytes>` suffixes, while rejecting auto-generated
+/// IDA labels (`sub_*`, `loc_*`, `nullsub_*`, `__tailMerge_*`, C++ `?` mangled names).
+pub(crate) fn clean_ida_import_symbol(raw: &str) -> Option<String> {
+    let mut s = raw.trim();
+    if s.is_empty() || s.starts_with('?') || s.starts_with('$') {
+        return None;
+    }
+    loop {
+        if let Some(rest) = s.strip_prefix("j_") {
+            s = rest;
+        } else if let Some(rest) = s.strip_prefix("__imp_load_") {
+            s = rest;
+        } else if let Some(rest) = s.strip_prefix("__imp_") {
+            s = rest;
+        } else {
+            break;
+        }
+    }
+    // Reject delay-load helper internals and IDA auto-names before stripping leading '_'
+    if s.starts_with("__tailMerge_")
+        || s.starts_with("__delayLoadHelper")
+        || s.starts_with("sub_")
+        || s.starts_with("loc_")
+        || s.starts_with("nullsub_")
+        || s.starts_with("unk_")
+        || s.starts_with("off_")
+        || s.starts_with("def_")
+    {
+        return None;
+    }
+    s = s.trim_start_matches('.');
+    // Strip 32-bit stdcall/cdecl decoration (`_CreateFileA@28` -> `CreateFileA`)
+    if let Some(at_pos) = s.rfind('@') {
+        if at_pos > 0 && s[at_pos + 1..].chars().all(|c| c.is_ascii_digit()) {
+            s = &s[..at_pos];
+            s = s.strip_prefix('_').unwrap_or(s);
+        }
+    }
+    let cleaned = s.trim_start_matches('_');
+    if cleaned.is_empty() {
+        None
+    } else {
+        Some(cleaned.to_string())
+    }
+}
+
+/// Extract imports using IDA's native import enumeration API, augmented with
+/// delay-load (`__imp_load_*` / `__imp_*`) symbols from IDA's name list and thunk stubs.
 fn extract_imports(idb: &IDB) -> Vec<ImportInfo> {
     let mut imports = Vec::new();
     let mut seen = std::collections::HashSet::new();
@@ -153,18 +195,38 @@ fn extract_imports(idb: &IDB) -> Vec<ImportInfo> {
         }
     }
 
-    // Secondary: check for .plt thunk functions (ELF imports not in module table)
+    // Secondary: scan IDA's name list for delay-load IAT slots (`__imp_load_*`) and
+    // any `__imp_*` data symbols omitted by `get_import_module_qty()` (MSVC `/DELAYLOAD`).
+    for sym in idb.names().iter() {
+        let raw_name = sym.name();
+        if raw_name.starts_with("__imp_load_") || raw_name.starts_with("__imp_") {
+            if let Some(cleaned) = clean_ida_import_symbol(raw_name) {
+                let addr = sym.address();
+                let key = format!("{}@{:#x}", cleaned, addr);
+                if seen.insert(key) {
+                    imports.push(ImportInfo {
+                        name: cleaned,
+                        module: None,
+                        address: addr,
+                    });
+                }
+            }
+        }
+    }
+
+    // Tertiary: check for .plt / delay-load thunk functions
     for (_id, func) in idb.functions() {
         if func.flags().contains(FunctionFlags::THUNK) {
             if let Some(name) = func.name() {
-                let normalized = name.trim_start_matches(['.', '_']).to_string();
-                let key = format!("{}@{:#x}", normalized, func.start_address());
-                if seen.insert(key) {
-                    imports.push(ImportInfo {
-                        name: normalized,
-                        module: None,
-                        address: func.start_address(),
-                    });
+                if let Some(normalized) = clean_ida_import_symbol(&name) {
+                    let key = format!("{}@{:#x}", normalized, func.start_address());
+                    if seen.insert(key) {
+                        imports.push(ImportInfo {
+                            name: normalized,
+                            module: None,
+                            address: func.start_address(),
+                        });
+                    }
                 }
             }
         }
@@ -246,5 +308,15 @@ mod tests {
     #[test]
     fn test_normalize_import_module_empty() {
         assert_eq!(normalize_import_module(""), None);
+    }
+
+    #[test]
+    fn test_clean_ida_import_symbol() {
+        assert_eq!(clean_ida_import_symbol("__imp_load_NetShareEnum"), Some("NetShareEnum".to_string()));
+        assert_eq!(clean_ida_import_symbol("j___imp_CryptBinaryToStringW"), Some("CryptBinaryToStringW".to_string()));
+        assert_eq!(clean_ida_import_symbol("_CreateFileA@28"), Some("CreateFileA".to_string()));
+        assert_eq!(clean_ida_import_symbol("__tailMerge_netapi32_dll"), None);
+        assert_eq!(clean_ida_import_symbol("sub_140001000"), None);
+        assert_eq!(clean_ida_import_symbol("?mangled@@YAXZ"), None);
     }
 }

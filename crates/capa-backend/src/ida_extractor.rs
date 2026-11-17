@@ -69,16 +69,17 @@ impl IdaExtractor {
         let mut info = load_from_idb(&idb);
 
         // Fix D: augment IDA's string list (idb.strings()) with a raw whole-image
-        // ASCII/UTF-16 scan — the same coverage the goblin path has via
-        // loader::extract_strings. IDA autoanalysis omits strings it never created
-        // as items (e.g. some anti-VM registry/device markers, PhysicalDrive
-        // paths), which file-scope string rules require. Duplicates are harmless
-        // — file.strings is a HashSet.
+        // ASCII/UTF-16 scan — mapping raw file offsets to virtual addresses so both
+        // file-scope and basic-block/instruction-scope string xref lookups (`strings_at`)
+        // resolve strings IDA never created as items (e.g. NTFS alternate data stream paths).
+        let va_map = crate::extractor::BinaryVaMap::from_bytes(&bytes);
         for s in crate::strings::extract_ascii_strings(&bytes, 4) {
-            info.strings.push(crate::loader::StringInfo { value: s.value, address: s.offset });
+            let addr = va_map.file_offset_to_va(s.offset).unwrap_or(s.offset);
+            info.strings.push(crate::loader::StringInfo { value: s.value, address: addr });
         }
         for s in crate::strings::extract_unicode_strings(&bytes, 4) {
-            info.strings.push(crate::loader::StringInfo { value: s.value, address: s.offset });
+            let addr = va_map.file_offset_to_va(s.offset).unwrap_or(s.offset);
+            info.strings.push(crate::loader::StringInfo { value: s.value, address: addr });
         }
 
         let program = lift_from_idb(&idb, info);

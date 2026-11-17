@@ -38,6 +38,10 @@ pub struct LiftedProgram {
     /// (`mov reg,[IAT]; call reg`) or whose IAT address IDA's import enumeration
     /// omitted — resolved by name (`__imp_<name>`) + first_xref_to.
     pub import_apis_at: HashMap<u64, Vec<(Option<String>, String)>>,
+    /// Map of instruction EA -> string literals resolved via IDA `DataRefsFrom` chains
+    pub insn_strings_at: HashMap<u64, Vec<String>>,
+    /// Map of instruction EA -> referenced data byte slices resolved via IDA `DataRefsFrom` chains
+    pub insn_bytes_at: HashMap<u64, Vec<Vec<u8>>>,
 }
 
 /// Lifted function with IL
@@ -138,6 +142,8 @@ pub fn lift_binary(bytes: &[u8], info: &BinaryInfo) -> Result<LiftedProgram, Loa
             iat_entries: HashMap::new(),
             thunk_targets: HashMap::new(),
             import_apis_at: HashMap::new(),
+            insn_strings_at: HashMap::new(),
+            insn_bytes_at: HashMap::new(),
         });
     }
 
@@ -451,6 +457,8 @@ fn lift_shellcode(bytes: &[u8], info: &BinaryInfo) -> Result<LiftedProgram, Load
         iat_entries: HashMap::new(),
         thunk_targets: HashMap::new(),
         import_apis_at: HashMap::new(),
+        insn_strings_at: HashMap::new(),
+        insn_bytes_at: HashMap::new(),
     })
 }
 
@@ -950,6 +958,8 @@ fn lift_with_iced(bytes: &[u8], info: &BinaryInfo) -> Result<LiftedProgram, Load
         iat_entries,
         thunk_targets,
         import_apis_at: HashMap::new(),
+        insn_strings_at: HashMap::new(),
+        insn_bytes_at: HashMap::new(),
     })
 }
 
@@ -1343,6 +1353,8 @@ fn lift_with_capstone(bytes: &[u8], info: &BinaryInfo) -> Result<LiftedProgram, 
         iat_entries,
         thunk_targets,
         import_apis_at: HashMap::new(),
+        insn_strings_at: HashMap::new(),
+        insn_bytes_at: HashMap::new(),
     })
 }
 

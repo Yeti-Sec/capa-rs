@@ -92,11 +92,29 @@ fn x86_reg_name(reg_id: u16, dtype: OperandDataType) -> &'static str {
     }
 }
 
+/// Mask an immediate value to the width of its IDA operand dtype so sign-extended
+/// 8/16/32-bit immediates (e.g. `cmp eax, -1` where IDA stores `0xffffffff_ffffffff`
+/// with `OperandDataType::DWord`) yield `0xFFFFFFFF` (`4294967295`), matching Python
+/// capa's `mask_op_val` semantics.
+fn mask_imm_by_dtype(val: u64, dtype: OperandDataType) -> i64 {
+    match dtype {
+        OperandDataType::Byte => (val & 0xFF) as i64,
+        OperandDataType::Word => (val & 0xFFFF) as i64,
+        OperandDataType::DWord => (val & 0xFFFF_FFFF) as i64,
+        _ => val as i64,
+    }
+}
+
 /// Extract numeric operand value for `number:` / `operand[n].number` matching.
 /// Memory/displacement addresses are intentionally excluded (they belong in `offset:`).
-fn operand_numeric_value(op_type: OperandType, imm_val: Option<u64>, addr_val: Option<u64>) -> Option<i64> {
+fn operand_numeric_value(
+    op_type: OperandType,
+    dtype: OperandDataType,
+    imm_val: Option<u64>,
+    addr_val: Option<u64>,
+) -> Option<i64> {
     match op_type {
-        OperandType::Imm => imm_val.map(|v| v as i64),
+        OperandType::Imm => imm_val.map(|v| mask_imm_by_dtype(v, dtype)),
         OperandType::Near | OperandType::Far => addr_val.map(|v| v as i64),
         _ => None,
     }
@@ -128,7 +146,7 @@ fn format_operand(op: &Operand, segpref: Option<i32>, addr_dtype: OperandDataTyp
             }
         }
         OperandType::Imm => {
-            let val = op.value().unwrap_or(0);
+            let val = mask_imm_by_dtype(op.value().unwrap_or(0), op.dtype()) as u64;
             format!("0x{:x}", val)
         }
         OperandType::Mem => {
@@ -147,18 +165,19 @@ fn format_operand(op: &Operand, segpref: Option<i32>, addr_dtype: OperandDataTyp
             if disp == 0 {
                 format!("{}[{}]", seg_prefix, base_str)
             } else {
-                // Check if displacement looks negative. On 32-bit binaries IDA may
-                // store negative displacements either 32-bit masked (0xffff_fff8)
-                // or 64-bit sign-extended (0xffffffff_fffffff8).
-                let signed = if matches!(addr_dtype, OperandDataType::DWord) && disp <= u32::MAX as u64 {
+                // x86/x86-64 ModRM/SIB displacements are 32-bit two's complement
+                // (IDA may store negative displacements either 32-bit masked `0xffff_ffd0`
+                // or 64-bit sign-extended `0xffffffff_ffffffd0`). Preserve genuine >4GB 64-bit
+                // base addresses (`0x18005b148`) intact.
+                let signed = if disp <= u32::MAX as u64 || (disp >> 32) == 0xFFFF_FFFF {
                     (disp as u32 as i32) as i64
                 } else {
                     disp as i64
                 };
-                if signed < 0 && signed > -0x1_0000_0000 {
+                if signed < 0 && signed > -0x8000_0000 {
                     format!("{}[{}-0x{:x}]", seg_prefix, base_str, -signed)
                 } else {
-                    format!("{}[{}+0x{:x}]", seg_prefix, base_str, disp)
+                    format!("{}[{}+0x{:x}]", seg_prefix, base_str, signed)
                 }
             }
         }
@@ -197,11 +216,14 @@ pub(crate) fn lift_from_idb(idb: &IDB, info: BinaryInfo) -> LiftedProgram {
         _ => OperandDataType::QWord,
     };
 
+    let known_import_names: std::collections::HashSet<String> =
+        info.imports.iter().map(|i| i.name.clone()).collect();
+
     for (_id, func) in idb.functions() {
         let func_addr = func.start_address();
         let func_name = func.name();
         let flags = func.flags();
-        let is_thunk = flags.contains(FunctionFlags::THUNK);
+        let mut is_thunk = flags.contains(FunctionFlags::THUNK);
         let is_library = flags.contains(FunctionFlags::LIB);
 
         // Build CFG and lift basic blocks
@@ -214,16 +236,36 @@ pub(crate) fn lift_from_idb(idb: &IDB, info: BinaryInfo) -> LiftedProgram {
             }
         };
 
-        // Detect thunk target
-        let thunk_target = if is_thunk {
-            func.calc_thunk_target().and_then(|target_addr| {
-                idb.function_at(target_addr)
-                    .and_then(|f| f.name())
-                    .map(|n| n.trim_start_matches(['.', '_']).to_string())
-            })
+        // Detect thunk target (standard JMP thunks + MSVC `/DELAYLOAD` 2-insn `__tailMerge` stubs
+        // whose function name matches a known import/delay-import symbol).
+        let mut thunk_target = if is_thunk {
+            func.calc_thunk_target()
+                .and_then(|target_addr| {
+                    idb.function_at(target_addr)
+                        .and_then(|f| f.name())
+                        .or_else(|| idb.address_to_string(target_addr))
+                })
+                .and_then(|n| crate::ida_loader::clean_ida_import_symbol(&n))
+                .or_else(|| {
+                    func_name
+                        .as_deref()
+                        .and_then(crate::ida_loader::clean_ida_import_symbol)
+                })
         } else {
             None
         };
+
+        if thunk_target.is_none() && basic_blocks.len() == 1 && basic_blocks[0].instructions.len() <= 4 {
+            if let Some(cleaned) = func_name
+                .as_deref()
+                .and_then(crate::ida_loader::clean_ida_import_symbol)
+            {
+                if known_import_names.contains(&cleaned) {
+                    is_thunk = true;
+                    thunk_target = Some(cleaned);
+                }
+            }
+        }
 
         functions.insert(
             func_addr,
@@ -254,11 +296,12 @@ pub(crate) fn lift_from_idb(idb: &IDB, info: BinaryInfo) -> LiftedProgram {
         }
     }
 
-    // Build IAT entries and string maps from BinaryInfo
+    // Build IAT entries, string maps, import call xrefs, and data-xref string/bytes maps
     let iat_entries = build_iat_map(&info);
     let strings_at = build_string_map(idb, &info);
     let thunk_targets = build_thunk_map(&functions);
     let import_apis_at = build_import_xref_map(idb, &info, &functions);
+    let (insn_strings_at, insn_bytes_at) = build_insn_data_xref_maps(idb, &functions, &strings_at);
 
     LiftedProgram {
         functions,
@@ -268,14 +311,126 @@ pub(crate) fn lift_from_idb(idb: &IDB, info: BinaryInfo) -> LiftedProgram {
         iat_entries,
         thunk_targets,
         import_apis_at,
+        insn_strings_at,
+        insn_bytes_at,
     }
 }
 
+/// Non-flow code xrefs from `ea` (equivalent to `idautils.CodeRefsFrom(ea, False)`).
+fn code_refs_from(idb: &IDB, ea: u64) -> Vec<u64> {
+    let mut out = Vec::new();
+    let mut cur = idb.first_xref_from(ea, idalib::xref::XRefQuery::FAR);
+    while let Some(x) = cur {
+        if x.is_code() {
+            out.push(x.to());
+        }
+        cur = x.next_from();
+    }
+    out
+}
+
+/// Data xrefs from `ea` (equivalent to `idautils.DataRefsFrom(ea)`).
+fn data_refs_from(idb: &IDB, ea: u64) -> Vec<u64> {
+    let mut out = Vec::new();
+    let mut cur = idb.first_xref_from(ea, idalib::xref::XRefQuery::DATA);
+    while let Some(x) = cur {
+        if x.is_data() {
+            out.push(x.to());
+        }
+        cur = x.next_from();
+    }
+    out
+}
+
+/// Follow a chain of single `DataRefsFrom` links up to `max_depth` (matching Python
+/// capa's `find_data_reference_from_insn`).
+fn follow_data_ref_chain(idb: &IDB, start_ea: u64, max_depth: usize) -> Option<u64> {
+    let mut ea = start_ea;
+    let mut depth = 0;
+    loop {
+        let drefs = data_refs_from(idb, ea);
+        if drefs.len() != 1 {
+            break;
+        }
+        let next = drefs[0];
+        if next == ea || idb.segment_at(next).is_none() {
+            break;
+        }
+        ea = next;
+        depth += 1;
+        if depth >= max_depth {
+            break;
+        }
+    }
+    if ea != start_ea {
+        Some(ea)
+    } else {
+        None
+    }
+}
+
+fn read_bytes_at_seg_bounded(idb: &IDB, ea: u64, max_len: usize) -> Vec<u8> {
+    let Some(seg) = idb.segment_at(ea) else {
+        return Vec::new();
+    };
+    let avail = seg.end_address().saturating_sub(ea) as usize;
+    let take = avail.min(max_len);
+    if take == 0 {
+        return Vec::new();
+    }
+    idb.get_bytes(ea, take)
+}
+
+/// Resolve per-instruction `DataRefsFrom` strings and byte slices (matching Python capa's
+/// `extract_insn_string_features` and `extract_insn_bytes_features`).
+fn build_insn_data_xref_maps(
+    idb: &IDB,
+    functions: &HashMap<u64, LiftedFunction>,
+    strings_at: &HashMap<u64, String>,
+) -> (HashMap<u64, Vec<String>>, HashMap<u64, Vec<Vec<u8>>>) {
+    let mut insn_strings: HashMap<u64, Vec<String>> = HashMap::new();
+    let mut insn_bytes: HashMap<u64, Vec<Vec<u8>>> = HashMap::new();
+
+    for f in functions.values() {
+        if f.is_library || f.is_thunk {
+            continue;
+        }
+        for bb in &f.basic_blocks {
+            for insn in &bb.instructions {
+                if insn.mnemonic == "call" {
+                    continue;
+                }
+                let Some(ref_ea) = follow_data_ref_chain(idb, insn.address, 10) else {
+                    continue;
+                };
+                if let Some(s) = strings_at.get(&ref_ea) {
+                    insn_strings.entry(insn.address).or_default().push(s.clone());
+                } else {
+                    let raw = read_bytes_at_seg_bounded(idb, ref_ea, 0x100);
+                    if !raw.is_empty() && raw.iter().any(|&b| b != 0) {
+                        insn_bytes.entry(insn.address).or_default().push(raw);
+                    }
+                }
+            }
+        }
+    }
+
+    (insn_strings, insn_bytes)
+}
+
 /// Match an IDA symbol name (as returned by `address_to_string`) against a known
-/// import name, tolerating `__imp_` prefixes and `module_`/`module.`/`module!`
+/// import name, tolerating `__imp_` / `__imp_load_` prefixes and `module_`/`module.`/`module!`
 /// qualifiers. Returns the bare import name if matched.
 fn match_import_symbol(sym: &str, import_names: &std::collections::HashSet<String>) -> Option<String> {
-    let base = sym.strip_prefix("__imp_").unwrap_or(sym);
+    if let Some(cleaned) = crate::ida_loader::clean_ida_import_symbol(sym) {
+        if import_names.contains(&cleaned) {
+            return Some(cleaned);
+        }
+    }
+    let base = sym
+        .strip_prefix("__imp_load_")
+        .or_else(|| sym.strip_prefix("__imp_"))
+        .unwrap_or(sym);
     if import_names.contains(base) {
         return Some(base.to_string());
     }
@@ -297,49 +452,129 @@ fn parse_bracket_hex(operand: &str) -> Option<u64> {
     u64::from_str_radix(&rest[..end], 16).ok()
 }
 
-/// Build a map of referencing-instruction address -> imported APIs, resolving
-/// every `[0x<addr>]` memory operand through IDA's own symbol table
-/// (`address_to_string`). This is the IDA-native analogue of what capa's
-/// vivisect backend recovers: it names the actual referenced address regardless
-/// of how the import was invoked (`call [IAT]`, `mov reg,[IAT]; call reg`, …) and
-/// regardless of whether IDA's `enum_all_imports()` reported a usable IAT
-/// address for it (it only did for ~40% here). Recovers e.g. CreateFileW /
-/// TlsGetValue referenced via forms the address-keyed import map misses.
+/// Resolve API targets for `call` and `jmp` instructions using IDA's `CodeRefsFrom` /
+/// `DataRefsFrom` chains (up to `THUNK_CHAIN_DEPTH_DELTA = 5`) plus IDA/FLIRT/delay-load
+/// named target functions (`FUNC_LIB` or `!name.starts_with("sub_")`), matching Python
+/// capa's `extract_insn_api_features` 1-for-1.
 fn build_import_xref_map(
     idb: &IDB,
     info: &BinaryInfo,
     functions: &HashMap<u64, LiftedFunction>,
 ) -> HashMap<u64, Vec<(Option<String>, String)>> {
+    const THUNK_CHAIN_DEPTH_DELTA: usize = 5;
+
     let import_names: std::collections::HashSet<String> =
         info.imports.iter().map(|i| i.name.clone()).collect();
+    let mut imports_by_addr: HashMap<u64, (Option<String>, String)> = HashMap::new();
     let mut name_to_module: HashMap<String, Option<String>> = HashMap::new();
     for imp in &info.imports {
+        let norm_mod = imp.module.as_ref().map(|m| normalize_module(m));
+        if imp.address > 0 {
+            imports_by_addr.insert(imp.address, (norm_mod.clone(), imp.name.clone()));
+        }
         name_to_module
             .entry(imp.name.clone())
-            .or_insert_with(|| imp.module.clone());
+            .or_insert(norm_mod);
     }
 
-    // Cache addr -> resolved import name (many instructions hit the same slot).
-    let mut addr_cache: HashMap<u64, Option<String>> = HashMap::new();
+    let mut addr_sym_cache: HashMap<u64, Option<String>> = HashMap::new();
     let mut map: HashMap<u64, Vec<(Option<String>, String)>> = HashMap::new();
 
     for f in functions.values() {
+        if f.is_library || f.is_thunk {
+            continue;
+        }
         for bb in &f.basic_blocks {
             for insn in &bb.instructions {
-                for operand in &insn.operands {
-                    let Some(addr) = parse_bracket_hex(operand) else {
-                        continue;
+                if insn.mnemonic != "call" && insn.mnemonic != "jmp" {
+                    continue;
+                }
+
+                let mut matched_import: Option<(Option<String>, String)> = None;
+
+                // 1. Follow CodeRefsFrom / DataRefsFrom chain up to THUNK_CHAIN_DEPTH_DELTA
+                // (resolves direct IAT calls, register-tracked `call rsi`, and chained thunks)
+                let mut ref_ea = insn.address;
+                for _ in 0..THUNK_CHAIN_DEPTH_DELTA {
+                    let next_opt = code_refs_from(idb, ref_ea)
+                        .into_iter()
+                        .next()
+                        .or_else(|| data_refs_from(idb, ref_ea).into_iter().next());
+                    let Some(next_ea) = next_opt else {
+                        break;
                     };
-                    let resolved = addr_cache
-                        .entry(addr)
+                    if let Some(imp) = imports_by_addr.get(&next_ea) {
+                        matched_import = Some(imp.clone());
+                        break;
+                    }
+                    let sym_hit = addr_sym_cache
+                        .entry(next_ea)
                         .or_insert_with(|| {
-                            idb.address_to_string(addr)
+                            idb.address_to_string(next_ea)
                                 .and_then(|sym| match_import_symbol(&sym, &import_names))
                         })
                         .clone();
-                    if let Some(name) = resolved {
+                    if let Some(name) = sym_hit {
                         let module = name_to_module.get(&name).cloned().flatten();
-                        map.entry(insn.address).or_default().push((module, name));
+                        matched_import = Some((module, name));
+                        break;
+                    }
+                    let is_chainable = functions
+                        .get(&next_ea)
+                        .is_some_and(|tf| tf.is_thunk || (tf.basic_blocks.len() == 1 && tf.basic_blocks[0].instructions.len() <= 3));
+                    if !is_chainable {
+                        break;
+                    }
+                    ref_ea = next_ea;
+                }
+
+                // 2. Fallback: `[0x<addr>]` operand symbol lookup (for `call [IAT]` / `jmp [IAT]`)
+                if matched_import.is_none() {
+                    for operand in &insn.operands {
+                        if let Some(addr) = parse_bracket_hex(operand) {
+                            let sym_hit = addr_sym_cache
+                                .entry(addr)
+                                .or_insert_with(|| {
+                                    idb.address_to_string(addr)
+                                        .and_then(|sym| match_import_symbol(&sym, &import_names))
+                                })
+                                .clone();
+                            if let Some(name) = sym_hit {
+                                let module = name_to_module.get(&name).cloned().flatten();
+                                matched_import = Some((module, name));
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if let Some(entry) = matched_import {
+                    map.entry(insn.address).or_default().push(entry);
+                    continue;
+                }
+
+                // 3. IDA/FLIRT/delay-load named function target (`FUNC_LIB` or `!name.starts_with("sub_")`,
+                // matching Python capa `insn.py` lines 117-135).
+                if let Some(target_ea) = code_refs_from(idb, insn.address).into_iter().next() {
+                    if let Some(target_func) = functions.get(&target_ea) {
+                        if let Some(raw_name) = target_func.name.as_deref() {
+                            let name = raw_name.trim();
+                            if !name.is_empty()
+                                && (target_func.is_library || !name.starts_with("sub_"))
+                                && !name.starts_with("nullsub_")
+                                && !name.starts_with("loc_")
+                                && !name.starts_with("__security_check_cookie")
+                            {
+                                let entry_list = map.entry(insn.address).or_default();
+                                entry_list.push((None, name.to_string()));
+                                if let Some(cleaned) = crate::ida_loader::clean_ida_import_symbol(name) {
+                                    if cleaned != name {
+                                        let module = name_to_module.get(&cleaned).cloned().flatten();
+                                        entry_list.push((module, cleaned));
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -449,7 +684,7 @@ fn lift_instructions(idb: &IDB, start: u64, end: u64, addr_dtype: OperandDataTyp
         for n in 0..insn.operand_count() {
             let (op_str, op_val) = if let Some(op) = insn.operand(n) {
                 let s = format_operand(&op, segpref, addr_dtype);
-                let v = operand_numeric_value(op.type_(), op.value(), op.addr());
+                let v = operand_numeric_value(op.type_(), op.dtype(), op.value(), op.addr());
                 (s, v)
             } else {
                 (String::new(), None)
@@ -476,7 +711,10 @@ fn lift_instructions(idb: &IDB, start: u64, end: u64, addr_dtype: OperandDataTyp
                 target,
                 is_call: true,
             });
-            if let Some(t) = target {
+            let crefs = code_refs_from(idb, ea);
+            if !crefs.is_empty() {
+                callees.extend(crefs);
+            } else if let Some(t) = target {
                 callees.push(t);
             }
         } else if mnemonic.starts_with('j') || insn.is_ret() {
@@ -635,13 +873,46 @@ mod tests {
     }
 
     #[test]
-    fn test_operand_numeric_value_excludes_mem_and_displ() {
-        // Positive: immediates and near/far branch targets yield numeric values
-        assert_eq!(operand_numeric_value(OperandType::Imm, Some(0x36), None), Some(0x36));
-        assert_eq!(operand_numeric_value(OperandType::Near, None, Some(0x140001000)), Some(0x140001000));
+    fn test_operand_numeric_value_excludes_mem_and_displ_and_masks_imm_width() {
+        // Positive: immediates masked to dtype width (`cmp eax, -1` -> 0xFFFFFFFF = 4294967295)
+        assert_eq!(
+            operand_numeric_value(OperandType::Imm, OperandDataType::Byte, Some(0x36), None),
+            Some(0x36)
+        );
+        assert_eq!(
+            operand_numeric_value(
+                OperandType::Imm,
+                OperandDataType::DWord,
+                Some(0xFFFF_FFFF_FFFF_FFFF),
+                None
+            ),
+            Some(0xFFFF_FFFF)
+        );
+        assert_eq!(
+            operand_numeric_value(
+                OperandType::Imm,
+                OperandDataType::QWord,
+                Some(0xFFFF_FFFF_FFFF_FFFF),
+                None
+            ),
+            Some(-1)
+        );
+        assert_eq!(
+            operand_numeric_value(OperandType::Near, OperandDataType::QWord, None, Some(0x140001000)),
+            Some(0x140001000)
+        );
         // Negative: Mem and Displ operands must NOT leak into `number:` features
-        assert_eq!(operand_numeric_value(OperandType::Mem, None, Some(0x140002000)), None);
-        assert_eq!(operand_numeric_value(OperandType::Displ, None, Some(0x20)), None);
-        assert_eq!(operand_numeric_value(OperandType::Reg, None, None), None);
+        assert_eq!(
+            operand_numeric_value(OperandType::Mem, OperandDataType::QWord, None, Some(0x140002000)),
+            None
+        );
+        assert_eq!(
+            operand_numeric_value(OperandType::Displ, OperandDataType::QWord, None, Some(0x20)),
+            None
+        );
+        assert_eq!(
+            operand_numeric_value(OperandType::Reg, OperandDataType::QWord, None, None),
+            None
+        );
     }
 }

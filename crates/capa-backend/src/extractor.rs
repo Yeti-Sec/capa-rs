@@ -186,6 +186,249 @@ impl FeatureExtractor for GoblinExtractor {
     }
 }
 
+#[derive(Debug, Clone)]
+struct VaSegment {
+    va_start: u64,
+    file_start: u64,
+    raw_size: u64,
+}
+
+/// Maps between raw file offsets and virtual addresses for PE/ELF images.
+#[derive(Debug, Default, Clone)]
+pub(crate) struct BinaryVaMap {
+    segments: Vec<VaSegment>,
+}
+
+impl BinaryVaMap {
+    pub(crate) fn from_bytes(bytes: &[u8]) -> Self {
+        use goblin::Object;
+        let mut segments = Vec::new();
+        if let Ok(obj) = Object::parse(bytes) {
+            match obj {
+                Object::PE(pe) => {
+                    let image_base = pe.image_base as u64;
+                    for sec in &pe.sections {
+                        let raw_size = sec.size_of_raw_data as u64;
+                        if raw_size > 0 {
+                            segments.push(VaSegment {
+                                va_start: image_base.wrapping_add(sec.virtual_address as u64),
+                                file_start: sec.pointer_to_raw_data as u64,
+                                raw_size,
+                            });
+                        }
+                    }
+                }
+                Object::Elf(elf) => {
+                    for ph in &elf.program_headers {
+                        if ph.p_type == goblin::elf::program_header::PT_LOAD && ph.p_filesz > 0 {
+                            segments.push(VaSegment {
+                                va_start: ph.p_vaddr,
+                                file_start: ph.p_offset,
+                                raw_size: ph.p_filesz,
+                            });
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        Self { segments }
+    }
+
+    #[cfg_attr(not(feature = "ida-backend"), allow(dead_code))]
+    pub(crate) fn file_offset_to_va(&self, file_off: u64) -> Option<u64> {
+        for seg in &self.segments {
+            if file_off >= seg.file_start && file_off < seg.file_start + seg.raw_size {
+                return Some(seg.va_start + (file_off - seg.file_start));
+            }
+        }
+        None
+    }
+
+    pub(crate) fn slice_at_va<'a>(&self, bytes: &'a [u8], va: u64, max_len: usize) -> Option<&'a [u8]> {
+        for seg in &self.segments {
+            if va >= seg.va_start && va < seg.va_start + seg.raw_size {
+                let off = (seg.file_start + (va - seg.va_start)) as usize;
+                let end_bound = ((seg.file_start + seg.raw_size) as usize).min(bytes.len());
+                if off < end_bound {
+                    let take = (end_bound - off).min(max_len);
+                    if take > 0 {
+                        return Some(&bytes[off..off + take]);
+                    }
+                }
+            }
+        }
+        None
+    }
+}
+
+/// Insert a FLIRT-recognized `is_library` callee's C/WinAPI name into `apis` (e.g. `_getenv` -> `getenv`),
+/// ignoring auto-generated IDA labels and C++ mangled (`?` / `$`) internal helpers.
+fn insert_flirt_library_callee_api(
+    target: u64,
+    program: &LiftedProgram,
+    apis: &mut std::collections::HashSet<String>,
+) {
+    let Some(callee) = program.functions.get(&target) else {
+        return;
+    };
+    if !callee.is_library {
+        return;
+    }
+    let Some(raw_name) = callee.name.as_deref() else {
+        return;
+    };
+    let name = raw_name.trim();
+    if name.is_empty()
+        || name.starts_with('?')
+        || name.starts_with('$')
+        || name.starts_with('@')
+        || name.starts_with("sub_")
+        || name.starts_with("nullsub_")
+        || name.starts_with("loc_")
+        || name.starts_with("__security_")
+        || name.starts_with("_RTC_")
+        || name.starts_with("__scrt_")
+        || name.starts_with("__crt")
+    {
+        return;
+    }
+    insert_api(apis, &None, name);
+    if let Some(stripped) = name.strip_prefix('_') {
+        if !stripped.is_empty() && !stripped.starts_with('_') {
+            insert_api(apis, &None, stripped);
+        }
+    }
+}
+
+/// Check if a function's basic-block directed graph contains a multi-block cycle
+/// (Tarjan strongly connected component with `len >= 2`, matching Python capa's
+/// `loops.has_loop(edges, threshold=2)`). Falls back to `bb.is_loop_header` only
+/// for synthetic unit-test blocks constructed without CFG edges.
+fn has_cfg_loop(blocks: &[LiftedBasicBlock]) -> bool {
+    let any_edges = blocks
+        .iter()
+        .any(|bb| !bb.successors.is_empty() || !bb.predecessors.is_empty());
+    if !any_edges {
+        return blocks.iter().any(|bb| bb.is_loop_header);
+    }
+
+    let n = blocks.len();
+    let mut idx_to_pos = std::collections::HashMap::with_capacity(n);
+    for (pos, bb) in blocks.iter().enumerate() {
+        idx_to_pos.insert(bb.index, pos);
+    }
+
+    struct TarjanState {
+        index: usize,
+        indices: Vec<Option<usize>>,
+        lowlink: Vec<usize>,
+        on_stack: Vec<bool>,
+        stack: Vec<usize>,
+        found_multi_cycle: bool,
+    }
+
+    fn strongconnect(
+        v: usize,
+        blocks: &[LiftedBasicBlock],
+        idx_to_pos: &std::collections::HashMap<usize, usize>,
+        st: &mut TarjanState,
+    ) {
+        st.indices[v] = Some(st.index);
+        st.lowlink[v] = st.index;
+        st.index += 1;
+        st.stack.push(v);
+        st.on_stack[v] = true;
+
+        for &succ_id in &blocks[v].successors {
+            let Some(&w) = idx_to_pos.get(&succ_id) else {
+                continue;
+            };
+            if st.indices[w].is_none() {
+                strongconnect(w, blocks, idx_to_pos, st);
+                st.lowlink[v] = st.lowlink[v].min(st.lowlink[w]);
+            } else if st.on_stack[w] {
+                st.lowlink[v] = st.lowlink[v].min(st.indices[w].unwrap());
+            }
+            if st.found_multi_cycle {
+                return;
+            }
+        }
+
+        if Some(st.lowlink[v]) == st.indices[v] {
+            let mut scc_len = 0usize;
+            loop {
+                let w = st.stack.pop().unwrap();
+                st.on_stack[w] = false;
+                scc_len += 1;
+                if w == v {
+                    break;
+                }
+            }
+            if scc_len >= 2 {
+                st.found_multi_cycle = true;
+            }
+        }
+    }
+
+    let mut st = TarjanState {
+        index: 0,
+        indices: vec![None; n],
+        lowlink: vec![0; n],
+        on_stack: vec![false; n],
+        stack: Vec::with_capacity(n),
+        found_multi_cycle: false,
+    };
+
+    for v in 0..n {
+        if st.indices[v].is_none() {
+            strongconnect(v, blocks, &idx_to_pos, &mut st);
+            if st.found_multi_cycle {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// True for `ret`/`retn` or instructions modifying `sp`/`esp`/`rsp` (excluded from
+/// `number:` and `add -> offset:` extraction in Python capa `insn.py`).
+fn is_sp_or_ret_insn(insn: &crate::lifter::LiftedInstruction) -> bool {
+    if insn.mnemonic.starts_with("ret") {
+        return true;
+    }
+    if !matches!(insn.mnemonic.as_str(), "cmp" | "test" | "push") {
+        if let Some(dst) = insn.operands.first() {
+            let d = dst.trim().to_lowercase();
+            if matches!(d.as_str(), "sp" | "esp" | "rsp") {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// True when `op` is a single-base register + displacement (`[r8+0x10]` or `[rcx-0x30]`)
+/// without SIB index/scale (`*` or multiple `+`/`-`), matching Python capa's `lea` -> `Number` rule.
+fn is_lea_single_base_displ(op: &str) -> bool {
+    let op_lower = op.to_lowercase();
+    let Some(b_start) = op_lower.find('[') else {
+        return false;
+    };
+    let Some(b_end) = op_lower.find(']') else {
+        return false;
+    };
+    let inside = op_lower[b_start + 1..b_end].trim();
+    if inside.is_empty() || inside.contains('*') {
+        return false;
+    }
+    if !inside.chars().next().map_or(false, |c| c.is_ascii_alphabetic()) {
+        return false;
+    }
+    let sign_count = inside.chars().filter(|&c| c == '+' || c == '-').count();
+    sign_count == 1
+}
+
 /// Full-featured extractor using iced/vivisect disassembly
 #[derive(Debug, Default)]
 pub struct BinaryExtractor;
@@ -198,6 +441,7 @@ impl BinaryExtractor {
     /// Extract features from a lifted program
     pub(crate) fn extract_from_lifted(&self, program: &LiftedProgram, bytes: &[u8]) -> ExtractedFeatures {
         let info = &program.info;
+        let va_map = BinaryVaMap::from_bytes(bytes);
         let mut features = ExtractedFeatures::new(info.os, info.arch, info.format);
 
         // File-level features from binary info (with A/W suffix normalization)
@@ -251,9 +495,8 @@ impl BinaryExtractor {
             let mut func_features = FunctionFeatures::new(Address(*addr));
             func_features.name = func.name.clone();
 
-            // Check for loops at function level
-            let has_loop = func.basic_blocks.iter().any(|bb| bb.is_loop_header);
-            if has_loop {
+            // Check for multi-block CFG cycles (Tarjan SCC >= 2, matching Python capa)
+            if has_cfg_loop(&func.basic_blocks) {
                 func_features.features.add_characteristic(CharacteristicType::Loop);
             }
 
@@ -309,7 +552,7 @@ impl BinaryExtractor {
             // Extract instruction features
             for bb in &func.basic_blocks {
                 for insn in &bb.instructions {
-                    let insn_features = self.extract_instruction_features(insn, info, program);
+                    let insn_features = self.extract_instruction_features(insn, info, program, bytes, &va_map);
                     func_features.instructions.insert(Address(insn.address), insn_features.clone());
                 }
             }
@@ -335,8 +578,17 @@ impl BinaryExtractor {
     fn extract_basic_block_features(&self, bb: &LiftedBasicBlock, info: &BinaryInfo, program: &LiftedProgram) -> FeatureSet {
         let mut features = FeatureSet::new();
 
-        // Check for tight loop (small loop)
-        if bb.is_loop_header && bb.instructions.len() <= 10 {
+        // Check for tight loop: basic block branches directly back to itself
+        // (`bb.successors.contains(&bb.index)`, matching Python capa's
+        // `is_basic_block_tight_loop`). Preserve fallback for synthetic unit-test blocks
+        // built without CFG edges.
+        let has_cfg_edges = !bb.successors.is_empty() || !bb.predecessors.is_empty();
+        let is_tight_loop = if has_cfg_edges {
+            bb.successors.contains(&bb.index)
+        } else {
+            bb.is_loop_header && bb.instructions.len() <= 10
+        };
+        if is_tight_loop {
             features.add_characteristic(CharacteristicType::TightLoop);
         }
 
@@ -352,19 +604,22 @@ impl BinaryExtractor {
             *features.mnemonics.entry(insn.mnemonic.clone()).or_insert(0) += 1;
         }
 
-        // Collect numeric constants
+        // Collect numeric constants (excluding `ret`/`retn` and SP-modifying instructions)
         for insn in &bb.instructions {
+            if is_sp_or_ret_insn(insn) {
+                continue;
+            }
             for val in insn.operand_values.iter().flatten() {
                 features.numbers.insert(*val);
             }
         }
 
-        // Check for API calls
+        // Check for API calls (`call` and tailcall `jmp`, matching Python capa)
         for insn in &bb.instructions {
-            if insn.mnemonic == "call" {
-                // Try to resolve call target to import (direct call)
+            if insn.mnemonic == "call" || insn.mnemonic == "jmp" {
+                // Try to resolve call/jmp target to import (direct call/jmp)
                 for op in &insn.operations {
-                    if let ILOperation::Branch { target: Some(target), is_call: true } = op {
+                    if let ILOperation::Branch { target: Some(target), .. } = op {
                         // First check if target is a direct import
                         if let Some(import) = info.imports.iter().find(|i| i.address == *target) {
                             insert_api(&mut features.apis, &import.module, &import.name);
@@ -379,11 +634,13 @@ impl BinaryExtractor {
                             } else {
                                 insert_api(&mut features.apis, &None, api_name);
                             }
+                        } else {
+                            insert_flirt_library_callee_api(*target, program, &mut features.apis);
                         }
                     }
                 }
 
-                // Check for indirect call through IAT (call [rip+X] or call [address])
+                // Check for indirect call/jmp through IAT (`call [rip+X]` or `call [address]`)
                 for operand in &insn.operands {
                     if operand.contains('[') && operand.contains("0x") {
                         if let Some(addr) = self.parse_memory_address(operand, insn.address, insn.bytes.len()) {
@@ -397,6 +654,18 @@ impl BinaryExtractor {
                             }
                         }
                     }
+                }
+
+                if let Some(apis_here) = program.import_apis_at.get(&insn.address) {
+                    for (module, name) in apis_here {
+                        insert_api(&mut features.apis, module, name);
+                    }
+                }
+            }
+
+            if let Some(strs_here) = program.insn_strings_at.get(&insn.address) {
+                for s in strs_here {
+                    features.strings.insert(s.clone());
                 }
             }
 
@@ -494,10 +763,10 @@ impl BinaryExtractor {
         features
     }
 
-    /// Resolve an instruction's call target to an API name (direct import,
-    /// thunk, or IAT-indirect) and insert it into `apis`. Same resolution the
-    /// basic-block path uses; called from instruction scope so instruction-scope
-    /// `api:` rules can match (Fix A).
+    /// Resolve an instruction's call/jmp target to an API name (direct import,
+    /// thunk, IAT-indirect, or IDA xref chain) and insert it into `apis`.
+    /// Restricted to `call` and `jmp` instructions to match Python capa (`insn.py`),
+    /// avoiding false API hits on global data reads (`mov rax, [__imp__wpgmptr]`).
     fn resolve_instruction_apis(
         &self,
         insn: &crate::lifter::LiftedInstruction,
@@ -505,29 +774,25 @@ impl BinaryExtractor {
         program: &LiftedProgram,
         apis: &mut std::collections::HashSet<String>,
     ) {
-        // Direct call to an import or thunk (call instructions only).
-        if insn.mnemonic == "call" {
-            for op in &insn.operations {
-                if let ILOperation::Branch { target: Some(target), is_call: true } = op {
-                    if let Some(import) = info.imports.iter().find(|i| i.address == *target) {
-                        insert_api(apis, &import.module, &import.name);
-                    } else if let Some(api_name) = program.thunk_targets.get(target) {
-                        if let Some(dot_pos) = api_name.rfind('.') {
-                            let module = Some(api_name[..dot_pos].to_string());
-                            insert_api(apis, &module, &api_name[dot_pos + 1..]);
-                        } else {
-                            insert_api(apis, &None, api_name);
-                        }
+        if insn.mnemonic != "call" && insn.mnemonic != "jmp" {
+            return;
+        }
+        for op in &insn.operations {
+            if let ILOperation::Branch { target: Some(target), .. } = op {
+                if let Some(import) = info.imports.iter().find(|i| i.address == *target) {
+                    insert_api(apis, &import.module, &import.name);
+                } else if let Some(api_name) = program.thunk_targets.get(target) {
+                    if let Some(dot_pos) = api_name.rfind('.') {
+                        let module = Some(api_name[..dot_pos].to_string());
+                        insert_api(apis, &module, &api_name[dot_pos + 1..]);
+                    } else {
+                        insert_api(apis, &None, api_name);
                     }
+                } else {
+                    insert_flirt_library_callee_api(*target, program, apis);
                 }
             }
         }
-        // ANY instruction that references an IAT slot through a memory operand —
-        // not just `call [IAT]`, but also `mov reg,[IAT]` / `push [IAT]` /
-        // `lea reg,[IAT]` (the register-indirect call setup `mov reg,[IAT];
-        // call reg`). Resolving the api at the referencing instruction mirrors
-        // capa's xref-to-import behavior and recovers imports invoked this way
-        // (e.g. CreateFile, TlsGetValue) that a call-target-only scan misses.
         for operand in &insn.operands {
             if operand.contains('[') && operand.contains("0x") {
                 if let Some(addr) = self.parse_memory_address(operand, insn.address, insn.bytes.len()) {
@@ -539,9 +804,6 @@ impl BinaryExtractor {
                 }
             }
         }
-        // Xref-driven import APIs stamped at this instruction (IDA path): recovers
-        // imports whose IAT address was missing from enumeration or that are
-        // called register-indirect. Empty for the goblin path.
         if let Some(apis_here) = program.import_apis_at.get(&insn.address) {
             for (module, name) in apis_here {
                 insert_api(apis, module, name);
@@ -550,32 +812,75 @@ impl BinaryExtractor {
     }
 
     /// Extract features from a single instruction
-    fn extract_instruction_features(&self, insn: &crate::lifter::LiftedInstruction, info: &BinaryInfo, program: &LiftedProgram) -> FeatureSet {
+    fn extract_instruction_features(
+        &self,
+        insn: &crate::lifter::LiftedInstruction,
+        info: &BinaryInfo,
+        program: &LiftedProgram,
+        image_bytes: &[u8],
+        va_map: &BinaryVaMap,
+    ) -> FeatureSet {
+        const MAX_STRUCTURE_SIZE: i64 = 0x10000;
         let mut features = FeatureSet::new();
 
         // Mnemonic
         *features.mnemonics.entry(insn.mnemonic.clone()).or_insert(0) += 1;
 
-        // API resolution at INSTRUCTION scope (Fix A): instruction-scope `api:`
-        // rules (create/open file, DeviceIoControl, GetProcAddress, ...) match
-        // the instruction's own FeatureSet, which previously carried zero apis.
+        // API resolution (`call`/`jmp` only)
         self.resolve_instruction_apis(insn, info, program, &mut features.apis);
 
+        // IDA `DataRefsFrom` string references
+        if let Some(strs_here) = program.insn_strings_at.get(&insn.address) {
+            for s in strs_here {
+                features.strings.insert(s.clone());
+            }
+        }
+
+        let skip_numbers = is_sp_or_ret_insn(insn);
+        let max_ops = insn.operand_values.len().max(insn.operands.len());
+
         // Operand values and offsets
-        for (idx, val) in insn.operand_values.iter().enumerate() {
-            let num = val.as_ref().copied();
+        for idx in 0..max_ops {
+            let mut num = if skip_numbers {
+                None
+            } else {
+                insn.operand_values.get(idx).and_then(|v| *v)
+            };
             if let Some(v) = num {
                 features.numbers.insert(v);
             }
 
             // Extract offset from this operand's memory reference
-            let offset = if idx < insn.operands.len() {
-                self.extract_operand_offset(&insn.operands[idx])
-            } else {
-                None
-            };
+            let mut offset = insn
+                .operands
+                .get(idx)
+                .and_then(|op_str| self.extract_operand_offset(op_str));
             if let Some(off) = offset {
                 features.offsets.insert(off);
+            }
+
+            // Python capa `insn.py` rule 1: `add reg, imm` (`0 < imm < 0x10000`, non-SP)
+            // also yields `Offset(imm)` + `OperandOffset(idx, imm)` (e.g. `add rcx, 0x18`
+            // in `enumerate PE sections` and `add rax, 0x88` in `resolve function by parsing PE exports`).
+            if insn.mnemonic == "add" && !skip_numbers && offset.is_none() {
+                if let Some(v) = num {
+                    if v > 0 && v < MAX_STRUCTURE_SIZE {
+                        features.offsets.insert(v);
+                        offset = Some(v);
+                    }
+                }
+            }
+
+            // Python capa `insn.py` rule 2: `lea reg, [base + disp]` (operand 1 without SIB scale/index)
+            // also yields `Number(disp)` + `OperandNumber(1, disp)` (e.g. `lea edx, [r8 + 0x10]`
+            // and `lea eax, [rbx + 1]`).
+            if insn.mnemonic == "lea" && idx == 1 && num.is_none() {
+                if let (Some(off), Some(op_str)) = (offset, insn.operands.get(1)) {
+                    if is_lea_single_base_displ(op_str) {
+                        features.numbers.insert(off);
+                        num = Some(off);
+                    }
+                }
             }
 
             if num.is_some() || offset.is_some() {
@@ -583,21 +888,66 @@ impl BinaryExtractor {
             }
         }
 
-        // Bytes
+        // Record per-instruction occurrence counts (1 per distinct constant/offset on this insn,
+        // matching Python capa's `set[Address]` feature cardinality).
+        for &n in &features.numbers {
+            features.number_counts.insert(n, 1);
+        }
+        for &o in &features.offsets {
+            features.offset_counts.insert(o, 1);
+        }
+
+        // Bytes: raw instruction bytes + up to 0x100 bytes at referenced data pointers
+        // (matching Python capa's `extract_insn_bytes` for COM GUIDs, S-boxes, etc.)
         if !insn.bytes.is_empty() {
             features.bytes_sequences.push(insn.bytes.clone());
+        }
+        if let Some(bytes_here) = program.insn_bytes_at.get(&insn.address) {
+            for b in bytes_here {
+                features.bytes_sequences.push(b.clone());
+            }
+        }
+        let is_branch_or_call = insn.mnemonic == "call"
+            || insn.mnemonic.starts_with('j')
+            || insn.mnemonic.starts_with("loop");
+        if !is_branch_or_call && program.insn_bytes_at.is_empty() && !image_bytes.is_empty() {
+            for operand in &insn.operands {
+                if operand.contains('[') && operand.contains("0x") {
+                    if let Some(addr) = self.parse_memory_address(operand, insn.address, insn.bytes.len()) {
+                        if !program.strings_at.contains_key(&addr) {
+                            if let Some(slice) = va_map.slice_at_va(image_bytes, addr, 0x100) {
+                                if slice.iter().any(|&b| b != 0) {
+                                    features.bytes_sequences.push(slice.to_vec());
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            for &val in insn.operand_values.iter().flatten() {
+                if val > 0x1000 {
+                    let addr = val as u64;
+                    if !program.strings_at.contains_key(&addr) {
+                        if let Some(slice) = va_map.slice_at_va(image_bytes, addr, 0x100) {
+                            if slice.iter().any(|&b| b != 0) {
+                                features.bytes_sequences.push(slice.to_vec());
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         features
     }
 
-    /// Check if instruction is a non-zero XOR
+    /// Check if instruction is a non-zero XOR (excluding zeroing XORs and stack/frame
+    /// security-cookie XORs such as `xor rax, rsp` / `xor rcx, rsp` / `xor eax, ebp`).
     fn is_nzxor(&self, insn: &crate::lifter::LiftedInstruction) -> bool {
-        if insn.mnemonic != "xor" {
+        if !matches!(insn.mnemonic.as_str(), "xor" | "pxor" | "eor") {
             return false;
         }
 
-        // XOR with different operands is nzxor
         if insn.operands.len() >= 2 {
             let op1 = insn.operands[0].trim().to_lowercase();
             let op2 = insn.operands[1].trim().to_lowercase();
@@ -609,6 +959,17 @@ impl BinaryExtractor {
 
             // XOR with 0 is NOT nzxor
             if op2 == "0" || op2 == "0x0" {
+                return false;
+            }
+
+            // Stack/frame pointer XORs (`xor rax, rsp`, `xor rcx, rsp`, `xor eax, ebp`)
+            // are MSVC `/GS` stack security cookie checks, excluded by Python capa.
+            const STACK_REGS: &[&str] = &["esp", "ebp", "rsp", "rbp"];
+            if STACK_REGS.contains(&op1.as_str())
+                || STACK_REGS.contains(&op2.as_str())
+                || op1.contains("security_cookie")
+                || op2.contains("security_cookie")
+            {
                 return false;
             }
 
@@ -914,10 +1275,17 @@ impl BinaryExtractor {
             None => return false,
         };
 
-        // Check if any branch target is in a different section
+        // Check if any direct code branch target is in a different section (excluding
+        // memory-indirect IAT/pointer slots `[0x...]` and import entries, matching Python capa)
         for insn in &bb.instructions {
+            if insn.operands.first().is_some_and(|o| o.contains('[')) {
+                continue;
+            }
             for op in &insn.operations {
                 if let ILOperation::Branch { target: Some(target), .. } = op {
+                    if info.imports.iter().any(|i| i.address == *target) {
+                        continue;
+                    }
                     // Find section of target
                     let target_section = info.sections.iter().find(|s| {
                         *target >= s.address && *target < s.address + s.size
@@ -1370,6 +1738,8 @@ mod tests {
             iat_entries: HashMap::new(),
             thunk_targets: HashMap::new(),
             import_apis_at: HashMap::new(),
+            insn_strings_at: HashMap::new(),
+            insn_bytes_at: HashMap::new(),
         };
 
         let extracted = extractor.extract_from_lifted(&program, &[]);
@@ -1501,6 +1871,8 @@ rule:
             iat_entries: HashMap::new(),
             thunk_targets: HashMap::new(),
             import_apis_at: HashMap::new(),
+            insn_strings_at: HashMap::new(),
+            insn_bytes_at: HashMap::new(),
         };
 
         let extracted = extractor.extract_from_lifted(&program, &[]);
@@ -1514,5 +1886,313 @@ rule:
             5,
             "5 distinct callee targets must count as 5 CallsFrom"
         );
+    }
+
+    #[test]
+    fn test_parity_add_offset_lea_number_scc_loops_stack_cookie_and_offset_counts() {
+        use std::collections::HashMap;
+        use capa_core::matcher::MatchEngine;
+        use capa_core::rule::{parse_rule, FormatType};
+
+        let extractor = BinaryExtractor::new();
+        let info = crate::loader::BinaryInfo {
+            os: OsType::Windows,
+            arch: ArchType::Amd64,
+            format: FormatType::Pe,
+            imports: vec![crate::loader::ImportInfo {
+                name: "_wpgmptr".to_string(),
+                module: Some("msvcrt.dll".to_string()),
+                address: 0x200000,
+            }],
+            exports: vec![],
+            sections: vec![
+                crate::loader::SectionInfo {
+                    name: ".text".to_string(),
+                    address: 0x1000,
+                    size: 0x8000,
+                    is_executable: true,
+                },
+                crate::loader::SectionInfo {
+                    name: ".rdata".to_string(),
+                    address: 0x200000,
+                    size: 0x4000,
+                    is_executable: false,
+                },
+            ],
+            strings: vec![],
+            is_dotnet: false,
+            has_forwarded_exports: false,
+            is_mixed_mode: false,
+            entry_point: 0x1000,
+        };
+
+        // 1. Acyclic out-of-line block at higher EA jumping to lower EA (0 -> 2 -> 1):
+        //    must NOT emit Loop or TightLoop; also tests `add rcx, 0x18` -> offset,
+        //    `add rsp, 0x30` -> ignored, `lea edx, [r8+0x10]` -> number,
+        //    `xor rcx, rsp` -> NOT nzxor, `mov rax, [0x200000]` -> NOT api,
+        //    `call [0x200000]` -> NOT CrossSectionFlow, and 2 `movzx` -> count == 2 (not 4).
+        let bb0 = crate::lifter::LiftedBasicBlock {
+            index: 0,
+            address: 0x1000,
+            end_address: 0x1030,
+            instructions: vec![
+                crate::lifter::LiftedInstruction {
+                    address: 0x1000,
+                    mnemonic: "xor".to_string(),
+                    operands: vec!["rcx".to_string(), "rsp".to_string()],
+                    operand_values: vec![None, None],
+                    bytes: vec![0x48, 0x33, 0xCC],
+                    operations: vec![],
+                },
+                crate::lifter::LiftedInstruction {
+                    address: 0x1003,
+                    mnemonic: "add".to_string(),
+                    operands: vec!["rcx".to_string(), "0x18".to_string()],
+                    operand_values: vec![None, Some(0x18)],
+                    bytes: vec![0x48, 0x83, 0xC1, 0x18],
+                    operations: vec![],
+                },
+                crate::lifter::LiftedInstruction {
+                    address: 0x1007,
+                    mnemonic: "add".to_string(),
+                    operands: vec!["rsp".to_string(), "0x30".to_string()],
+                    operand_values: vec![None, Some(0x30)],
+                    bytes: vec![0x48, 0x83, 0xC4, 0x30],
+                    operations: vec![],
+                },
+                crate::lifter::LiftedInstruction {
+                    address: 0x100b,
+                    mnemonic: "lea".to_string(),
+                    operands: vec!["edx".to_string(), "[r8+0x10]".to_string()],
+                    operand_values: vec![None, None],
+                    bytes: vec![0x41, 0x8D, 0x50, 0x10],
+                    operations: vec![],
+                },
+                crate::lifter::LiftedInstruction {
+                    address: 0x100f,
+                    mnemonic: "lea".to_string(),
+                    operands: vec!["edx".to_string(), "[r8+rax*4+0x20]".to_string()],
+                    operand_values: vec![None, None],
+                    bytes: vec![0x41, 0x8D, 0x54, 0x80, 0x20],
+                    operations: vec![],
+                },
+                crate::lifter::LiftedInstruction {
+                    address: 0x1014,
+                    mnemonic: "mov".to_string(),
+                    operands: vec!["rax".to_string(), "[0x200000]".to_string()],
+                    operand_values: vec![None, None],
+                    bytes: vec![0x48, 0x8B, 0x05],
+                    operations: vec![],
+                },
+                crate::lifter::LiftedInstruction {
+                    address: 0x101b,
+                    mnemonic: "call".to_string(),
+                    operands: vec!["[0x200000]".to_string()],
+                    operand_values: vec![None],
+                    bytes: vec![0xFF, 0x15],
+                    operations: vec![ILOperation::Branch {
+                        target: Some(0x200000),
+                        is_call: true,
+                    }],
+                },
+            ],
+            successors: vec![2],
+            predecessors: vec![],
+            is_loop_header: false,
+        };
+        let bb1 = crate::lifter::LiftedBasicBlock {
+            index: 1,
+            address: 0x1040,
+            end_address: 0x1050,
+            instructions: vec![
+                crate::lifter::LiftedInstruction {
+                    address: 0x1040,
+                    mnemonic: "movzx".to_string(),
+                    operands: vec!["eax".to_string(), "[rax]".to_string()],
+                    operand_values: vec![None, None],
+                    bytes: vec![0x0F, 0xB6, 0x00],
+                    operations: vec![],
+                },
+                crate::lifter::LiftedInstruction {
+                    address: 0x1043,
+                    mnemonic: "movzx".to_string(),
+                    operands: vec!["ecx".to_string(), "[rcx]".to_string()],
+                    operand_values: vec![None, None],
+                    bytes: vec![0x0F, 0xB6, 0x09],
+                    operations: vec![],
+                },
+            ],
+            successors: vec![],
+            predecessors: vec![2],
+            is_loop_header: true, // naive EA check marked true, but DAG has no cycle!
+        };
+        let bb2 = crate::lifter::LiftedBasicBlock {
+            index: 2,
+            address: 0x1080,
+            end_address: 0x1090,
+            instructions: vec![crate::lifter::LiftedInstruction {
+                address: 0x1080,
+                mnemonic: "mov".to_string(),
+                operands: vec!["rax".to_string(), "[rax]".to_string()],
+                operand_values: vec![None, None],
+                bytes: vec![0x48, 0x8B, 0x00],
+                operations: vec![],
+            }],
+            successors: vec![1],
+            predecessors: vec![0],
+            is_loop_header: false,
+        };
+
+        // 2. Self-looping block with 12 instructions -> must emit TightLoop!
+        let self_loop_insns: Vec<_> = (0..12)
+            .map(|k| crate::lifter::LiftedInstruction {
+                address: 0x2000 + k * 2,
+                mnemonic: "nop".to_string(),
+                operands: vec![],
+                operand_values: vec![],
+                bytes: vec![0x90],
+                operations: vec![],
+            })
+            .collect();
+        let bb_self_loop = crate::lifter::LiftedBasicBlock {
+            index: 0,
+            address: 0x2000,
+            end_address: 0x2020,
+            instructions: self_loop_insns,
+            successors: vec![0],
+            predecessors: vec![0],
+            is_loop_header: true,
+        };
+
+        let mut functions = HashMap::new();
+        functions.insert(
+            0x1000,
+            crate::lifter::LiftedFunction {
+                address: 0x1000,
+                name: Some("f_dag".to_string()),
+                basic_blocks: vec![bb0, bb1, bb2],
+                callees: vec![0x200000],
+                callers: vec![],
+                is_thunk: false,
+                thunk_target: None,
+                is_library: false,
+            },
+        );
+        functions.insert(
+            0x2000,
+            crate::lifter::LiftedFunction {
+                address: 0x2000,
+                name: Some("f_tight".to_string()),
+                basic_blocks: vec![bb_self_loop],
+                callees: vec![],
+                callers: vec![],
+                is_thunk: false,
+                thunk_target: None,
+                is_library: false,
+            },
+        );
+
+        let mut iat_entries = HashMap::new();
+        iat_entries.insert(0x200000, (Some("msvcrt".to_string()), "_wpgmptr".to_string()));
+        let mut insn_bytes_at = HashMap::new();
+        // 32-byte data buffer starting with 16-byte GUID
+        let mut guid_buf = vec![0x9F, 0x36, 0x87, 0x0F, 0xE5, 0xA4, 0xFC, 0x4C, 0xBD, 0x3E, 0x73, 0xE6, 0x15, 0x45, 0x72, 0xDD];
+        guid_buf.extend_from_slice(&[0xAA; 16]);
+        insn_bytes_at.insert(0x100b, vec![guid_buf]);
+
+        let program = crate::lifter::LiftedProgram {
+            functions,
+            entry_point: 0x1000,
+            info,
+            strings_at: HashMap::new(),
+            iat_entries,
+            thunk_targets: HashMap::new(),
+            import_apis_at: HashMap::new(),
+            insn_strings_at: HashMap::new(),
+            insn_bytes_at,
+        };
+
+        let extracted = extractor.extract_from_lifted(&program, &[]);
+        let f_dag = &extracted.functions[&Address(0x1000)];
+        let f_dag_all = f_dag.all_features();
+
+        // Negative: DAG must NOT have Loop; stack cookie XOR must NOT be Nzxor;
+        // `add rsp, 0x30` must NOT emit number/offset 0x30; SIB `lea` must NOT emit number 0x20;
+        // `call [IAT]` must NOT emit CrossSectionFlow; `mov rax, [IAT]` at 0x1014 must NOT emit api.
+        assert!(!f_dag_all.characteristics.contains(&CharacteristicType::Loop));
+        assert!(!f_dag_all.characteristics.contains(&CharacteristicType::Nzxor));
+        assert!(!f_dag_all.characteristics.contains(&CharacteristicType::CrossSectionFlow));
+        assert!(!f_dag_all.numbers.contains(&0x30));
+        assert!(!f_dag_all.offsets.contains(&0x30));
+        assert!(!f_dag_all.numbers.contains(&0x20));
+        assert!(f_dag.instructions[&Address(0x1014)].apis.is_empty());
+
+        // Positive: `add rcx, 0x18` emits offset 0x18 + operand[1].offset 0x18;
+        // `lea edx, [r8+0x10]` emits number 0x10 + operand[1].number 0x10;
+        // 2 `movzx` instructions have mnemonic count == 2 (not doubled to 4);
+        // 12-insn self-loop has TightLoop.
+        assert!(f_dag_all.offsets.contains(&0x18));
+        assert!(f_dag.instructions[&Address(0x1003)].operands.contains(&(1, Some(0x18), Some(0x18))));
+        assert!(f_dag_all.numbers.contains(&0x10));
+        assert!(f_dag.instructions[&Address(0x100b)].operands.contains(&(1, Some(0x10), Some(0x10))));
+        assert_eq!(f_dag_all.mnemonics.get("movzx").copied(), Some(2));
+        assert!(extracted.functions[&Address(0x2000)].all_features().characteristics.contains(&CharacteristicType::TightLoop));
+
+        // Verify `count(offset(0)): 1` matches bb2 (1 `[rax]`) and rejects bb1 (2 `[rax]`/`[rcx]`),
+        // and `bytes:` prefix matching matches the 16-byte GUID inside the 32-byte data buffer.
+        let r_offset_one = parse_rule(
+            r#"
+rule:
+  meta:
+    name: single zero offset
+    scopes:
+      static: basic block
+  features:
+    - count(offset(0)): 1
+"#,
+        ).unwrap();
+        let r_guid_bytes = parse_rule(
+            r#"
+rule:
+  meta:
+    name: guid prefix bytes
+    scopes:
+      static: basic block
+  features:
+    - bytes: 9F 36 87 0F E5 A4 FC 4C BD 3E 73 E6 15 45 72 DD = CLSID_TaskScheduler
+"#,
+        ).unwrap();
+
+        let engine = MatchEngine::new(vec![r_offset_one, r_guid_bytes]);
+        let m_off = engine.match_rule_by_name("single zero offset", &extracted).unwrap();
+        assert_eq!(m_off.locations, vec![Address(0x1080)], "only bb2 (0x1080) has exactly 1 offset(0); bb1 (0x1040) has 2");
+
+        let m_guid = engine.match_rule_by_name("guid prefix bytes", &extracted).unwrap();
+        assert_eq!(m_guid.locations, vec![Address(0x1000)], "bb0 must match 16-byte GUID prefix inside 32-byte referenced data");
+    }
+
+    #[test]
+    fn test_all_bundled_capa_rules_v10_parse_cleanly() {
+        let rules_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join("capa-rules");
+        let rules = capa_core::rule::parse_rules_directory(&rules_dir)
+            .expect("capa-rules directory should load");
+        assert!(
+            rules.len() >= 1054,
+            "expected all 1054 Mandiant v10.0.0 rules to parse with zero errors, got {}",
+            rules.len()
+        );
+        // Verify rules that previously failed or corrupted inline comments are present and parsed properly
+        let names: std::collections::HashSet<_> = rules.iter().map(|r| r.meta.name.as_str()).collect();
+        assert!(names.contains("check for time delay in .NET"));
+        assert!(names.contains("reference absolute stream path on Windows"));
+        assert!(names.contains("validate payment card number using luhn algorithm with no lookup table"));
+        assert!(names.contains("schedule task via ITaskService"));
+        assert!(names.contains("get process heap flags"));
+        assert!(names.contains("encrypt data using speck"));
     }
 }

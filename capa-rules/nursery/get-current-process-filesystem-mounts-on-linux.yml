@@ -1,7 +1,7 @@
 rule:
   meta:
     name: get current process filesystem mounts on Linux
-    namespace: host-interation/process
+    namespace: host-interaction/process
     authors:
       - mehunhoff@google.com
     scopes:

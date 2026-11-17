@@ -44,6 +44,50 @@ pub struct MatchEngine {
 
 type MatchCache = Arc<DashMap<String, Option<RuleMatch>>>;
 
+struct PreparedFeatures<'a> {
+    raw: &'a ExtractedFeatures,
+    file_all: FeatureSet,
+    func_all: HashMap<Address, FeatureSet>,
+    bb_all: HashMap<(Address, usize), FeatureSet>,
+}
+
+impl<'a> PreparedFeatures<'a> {
+    fn new(raw: &'a ExtractedFeatures) -> Self {
+        let mut func_all = HashMap::with_capacity(raw.functions.len());
+        let mut bb_all = HashMap::new();
+        let mut file_all = raw.file.clone();
+
+        for (&addr, func) in &raw.functions {
+            let ff = func.all_features();
+            file_all.merge(&ff);
+            func_all.insert(addr, ff);
+            for &bb_idx in func.basic_blocks.keys() {
+                bb_all.insert((addr, bb_idx), func.basic_block_all_features(bb_idx));
+            }
+        }
+
+        Self {
+            raw,
+            file_all,
+            func_all,
+            bb_all,
+        }
+    }
+
+    #[inline]
+    fn func_features<'b>(&'b self, func: &'b FunctionFeatures) -> &'b FeatureSet {
+        self.func_all.get(&func.address).unwrap_or(&func.features)
+    }
+
+    #[inline]
+    fn bb_features<'b>(&'b self, func: &'b FunctionFeatures, bb_idx: usize) -> &'b FeatureSet {
+        self.bb_all
+            .get(&(func.address, bb_idx))
+            .or_else(|| func.basic_blocks.get(&bb_idx))
+            .unwrap_or(&func.features)
+    }
+}
+
 #[derive(Clone, Copy)]
 enum ScopeContext<'a> {
     File,
@@ -73,25 +117,27 @@ impl MatchEngine {
 
     /// Match all rules against extracted features (parallel)
     pub fn match_all(&self, features: &ExtractedFeatures) -> Vec<RuleMatch> {
+        let prep = PreparedFeatures::new(features);
         let cache: MatchCache = Arc::new(DashMap::new());
 
         // Process rules in parallel
         self.rules
             .par_iter()
             .filter_map(|rule| {
-                self.match_rule(rule, features, &cache, 0)
+                self.match_rule(rule, &prep, &cache, 0)
             })
             .collect()
     }
 
     /// Match all rules sequentially (for debugging/testing)
     pub fn match_all_sequential(&self, features: &ExtractedFeatures) -> Vec<RuleMatch> {
+        let prep = PreparedFeatures::new(features);
         let cache: MatchCache = Arc::new(DashMap::new());
 
         self.rules
             .iter()
             .filter_map(|rule| {
-                self.match_rule(rule, features, &cache, 0)
+                self.match_rule(rule, &prep, &cache, 0)
             })
             .collect()
     }
@@ -102,16 +148,17 @@ impl MatchEngine {
         name: &str,
         features: &ExtractedFeatures,
     ) -> Option<RuleMatch> {
+        let prep = PreparedFeatures::new(features);
         let cache: MatchCache = Arc::new(DashMap::new());
         let idx = self.rule_index.get(name)?;
         let rule = &self.rules[*idx];
-        self.match_rule(rule, features, &cache, 0)
+        self.match_rule(rule, &prep, &cache, 0)
     }
 
     fn match_rule(
         &self,
         rule: &Rule,
-        features: &ExtractedFeatures,
+        prep: &PreparedFeatures<'_>,
         cache: &MatchCache,
         depth: usize,
     ) -> Option<RuleMatch> {
@@ -125,22 +172,20 @@ impl MatchEngine {
             return res;
         }
 
+        let features = prep.raw;
         let scope = rule.meta.scopes.static_scope;
         let mut locations = Vec::new();
         let mut function_names = Vec::new();
 
         let matched = match scope {
             StaticScope::File => {
-                let file_features = features.all_features();
-                if self.evaluate_node(&rule.features, &file_features, features, ScopeContext::File, cache, depth) {
+                if self.evaluate_node(&rule.features, &prep.file_all, prep, ScopeContext::File, cache, depth) {
                     // File-scope matched - now find which functions contributed
                     // by checking which functions have features that match the rule
                     for (addr, func) in &features.functions {
-                        let func_features = func.all_features();
-                        // Check if this function has any features relevant to the rule
-                        if self.evaluate_node(&rule.features, &func_features, features, ScopeContext::Function(func), cache, depth) {
+                        let func_features = prep.func_features(func);
+                        if self.evaluate_node(&rule.features, func_features, prep, ScopeContext::Function(func), cache, depth) {
                             locations.push(*addr);
-                            // Collect function names if available
                             for name in &func_features.function_names {
                                 if !function_names.contains(name) {
                                     function_names.push(name.clone());
@@ -148,8 +193,6 @@ impl MatchEngine {
                             }
                         }
                     }
-                    // If no individual functions matched, the features may be file-level only
-                    // (like format: dotnet or characteristic: embedded pe)
                     if locations.is_empty() {
                         locations.push(Address(0));
                     }
@@ -159,12 +202,10 @@ impl MatchEngine {
                 }
             }
             StaticScope::Function => {
-                // Check each function and collect matching locations
                 for (addr, func) in &features.functions {
-                    let func_features = func.all_features();
-                    if self.evaluate_node(&rule.features, &func_features, features, ScopeContext::Function(func), cache, depth) {
+                    let func_features = prep.func_features(func);
+                    if self.evaluate_node(&rule.features, func_features, prep, ScopeContext::Function(func), cache, depth) {
                         locations.push(*addr);
-                        // Collect function names if available
                         for name in &func_features.function_names {
                             if !function_names.contains(name) {
                                 function_names.push(name.clone());
@@ -175,11 +216,10 @@ impl MatchEngine {
                 !locations.is_empty()
             }
             StaticScope::BasicBlock => {
-                // Check each basic block (enriched with its instructions' operands/bytes/apis)
                 for (func_addr, func) in &features.functions {
                     for &bb_idx in func.basic_blocks.keys() {
-                        let bb_features = func.basic_block_all_features(bb_idx);
-                        if self.evaluate_node(&rule.features, &bb_features, features, ScopeContext::BasicBlock(func, bb_idx), cache, depth) {
+                        let bb_features = prep.bb_features(func, bb_idx);
+                        if self.evaluate_node(&rule.features, bb_features, prep, ScopeContext::BasicBlock(func, bb_idx), cache, depth) {
                             let bb_addr = func
                                 .basic_block_addresses
                                 .get(&bb_idx)
@@ -192,10 +232,9 @@ impl MatchEngine {
                 !locations.is_empty()
             }
             StaticScope::Instruction => {
-                // Check each instruction
                 for func in features.functions.values() {
                     for (addr, inst) in &func.instructions {
-                        if self.evaluate_node(&rule.features, inst, features, ScopeContext::Instruction(func, Some(*addr)), cache, depth) {
+                        if self.evaluate_node(&rule.features, inst, prep, ScopeContext::Instruction(func, Some(*addr)), cache, depth) {
                             locations.push(*addr);
                         }
                     }
@@ -228,28 +267,29 @@ impl MatchEngine {
         &self,
         node: &FeatureNode,
         scope_features: &FeatureSet,
-        all_features: &ExtractedFeatures,
+        prep: &PreparedFeatures<'_>,
         ctx: ScopeContext<'_>,
         cache: &MatchCache,
         depth: usize,
     ) -> bool {
+        let all_features = prep.raw;
         match node {
             FeatureNode::And(children) => {
-                children.iter().all(|c| self.evaluate_node(c, scope_features, all_features, ctx, cache, depth))
+                children.iter().all(|c| self.evaluate_node(c, scope_features, prep, ctx, cache, depth))
             }
 
             FeatureNode::Or(children) => children
                 .iter()
-                .any(|c| self.evaluate_node(c, scope_features, all_features, ctx, cache, depth)),
+                .any(|c| self.evaluate_node(c, scope_features, prep, ctx, cache, depth)),
 
             FeatureNode::Not(child) => {
-                !self.evaluate_node(child, scope_features, all_features, ctx, cache, depth)
+                !self.evaluate_node(child, scope_features, prep, ctx, cache, depth)
             }
 
             FeatureNode::NOrMore(n, children) => {
                 let count = children
                     .iter()
-                    .filter(|c| self.evaluate_node(c, scope_features, all_features, ctx, cache, depth))
+                    .filter(|c| self.evaluate_node(c, scope_features, prep, ctx, cache, depth))
                     .count();
                 count >= *n
             }
@@ -258,7 +298,7 @@ impl MatchEngine {
 
             FeatureNode::Count(child, constraint) => {
                 let count = match Self::unwrap_match(child) {
-                    Some(rule_name) => self.count_rule_matches_in_context(rule_name, ctx, all_features, cache, depth),
+                    Some(rule_name) => self.count_rule_matches_in_context(rule_name, ctx, prep, cache, depth),
                     None => self.count_feature(child, scope_features),
                 };
                 match constraint {
@@ -272,11 +312,11 @@ impl MatchEngine {
             FeatureNode::Feature(feature) => self.match_feature(feature, scope_features, all_features),
 
             FeatureNode::Description(_, child) => {
-                self.evaluate_node(child, scope_features, all_features, ctx, cache, depth)
+                self.evaluate_node(child, scope_features, prep, ctx, cache, depth)
             }
 
             FeatureNode::Match(rule_name) => {
-                self.count_rule_matches_in_context(rule_name, ctx, all_features, cache, depth) > 0
+                self.count_rule_matches_in_context(rule_name, ctx, prep, cache, depth) > 0
             }
 
             FeatureNode::Instruction(children) => {
@@ -284,21 +324,21 @@ impl MatchEngine {
                     ScopeContext::File => {
                         all_features.functions.values().any(|func| {
                             if func.is_synthetic_func_only() {
-                                let ff = func.all_features();
-                                children.iter().all(|c| self.evaluate_node(c, &ff, all_features, ScopeContext::Instruction(func, None), cache, depth))
+                                let ff = prep.func_features(func);
+                                children.iter().all(|c| self.evaluate_node(c, ff, prep, ScopeContext::Instruction(func, None), cache, depth))
                             } else {
                                 func.instructions.iter().any(|(&addr, inst)| {
-                                    children.iter().all(|c| self.evaluate_node(c, inst, all_features, ScopeContext::Instruction(func, Some(addr)), cache, depth))
+                                    children.iter().all(|c| self.evaluate_node(c, inst, prep, ScopeContext::Instruction(func, Some(addr)), cache, depth))
                                 })
                             }
                         })
                     }
                     ScopeContext::Function(func) => {
                         if func.is_synthetic_func_only() {
-                            children.iter().all(|c| self.evaluate_node(c, scope_features, all_features, ScopeContext::Instruction(func, None), cache, depth))
+                            children.iter().all(|c| self.evaluate_node(c, scope_features, prep, ScopeContext::Instruction(func, None), cache, depth))
                         } else {
                             func.instructions.iter().any(|(&addr, inst)| {
-                                children.iter().all(|c| self.evaluate_node(c, inst, all_features, ScopeContext::Instruction(func, Some(addr)), cache, depth))
+                                children.iter().all(|c| self.evaluate_node(c, inst, prep, ScopeContext::Instruction(func, Some(addr)), cache, depth))
                             })
                         }
                     }
@@ -306,19 +346,19 @@ impl MatchEngine {
                         if let Some(addrs) = func.basic_block_instructions.get(&bb_idx) {
                             addrs.iter().any(|addr| {
                                 func.instructions.get(addr).is_some_and(|inst| {
-                                    children.iter().all(|c| self.evaluate_node(c, inst, all_features, ScopeContext::Instruction(func, Some(*addr)), cache, depth))
+                                    children.iter().all(|c| self.evaluate_node(c, inst, prep, ScopeContext::Instruction(func, Some(*addr)), cache, depth))
                                 })
                             })
                         } else if !func.instructions.is_empty() {
                             func.instructions.iter().any(|(&addr, inst)| {
-                                children.iter().all(|c| self.evaluate_node(c, inst, all_features, ScopeContext::Instruction(func, Some(addr)), cache, depth))
+                                children.iter().all(|c| self.evaluate_node(c, inst, prep, ScopeContext::Instruction(func, Some(addr)), cache, depth))
                             })
                         } else {
-                            children.iter().all(|c| self.evaluate_node(c, scope_features, all_features, ScopeContext::Instruction(func, None), cache, depth))
+                            children.iter().all(|c| self.evaluate_node(c, scope_features, prep, ScopeContext::Instruction(func, None), cache, depth))
                         }
                     }
                     ScopeContext::Instruction(_, _) => {
-                        children.iter().all(|c| self.evaluate_node(c, scope_features, all_features, ctx, cache, depth))
+                        children.iter().all(|c| self.evaluate_node(c, scope_features, prep, ctx, cache, depth))
                     }
                 }
             }
@@ -329,15 +369,15 @@ impl MatchEngine {
                         all_features.functions.values().any(|func| {
                             if func.basic_blocks.is_empty() {
                                 if func.is_synthetic_func_only() {
-                                    let ff = func.all_features();
-                                    children.iter().all(|c| self.evaluate_node(c, &ff, all_features, ScopeContext::Function(func), cache, depth))
+                                    let ff = prep.func_features(func);
+                                    children.iter().all(|c| self.evaluate_node(c, ff, prep, ScopeContext::Function(func), cache, depth))
                                 } else {
                                     false
                                 }
                             } else {
                                 func.basic_blocks.keys().any(|&bb_idx| {
-                                    let bbf = func.basic_block_all_features(bb_idx);
-                                    children.iter().all(|c| self.evaluate_node(c, &bbf, all_features, ScopeContext::BasicBlock(func, bb_idx), cache, depth))
+                                    let bbf = prep.bb_features(func, bb_idx);
+                                    children.iter().all(|c| self.evaluate_node(c, bbf, prep, ScopeContext::BasicBlock(func, bb_idx), cache, depth))
                                 })
                             }
                         })
@@ -345,19 +385,19 @@ impl MatchEngine {
                     ScopeContext::Function(func) => {
                         if func.basic_blocks.is_empty() {
                             if func.is_synthetic_func_only() {
-                                children.iter().all(|c| self.evaluate_node(c, scope_features, all_features, ctx, cache, depth))
+                                children.iter().all(|c| self.evaluate_node(c, scope_features, prep, ctx, cache, depth))
                             } else {
                                 false
                             }
                         } else {
                             func.basic_blocks.keys().any(|&bb_idx| {
-                                let bbf = func.basic_block_all_features(bb_idx);
-                                children.iter().all(|c| self.evaluate_node(c, &bbf, all_features, ScopeContext::BasicBlock(func, bb_idx), cache, depth))
+                                let bbf = prep.bb_features(func, bb_idx);
+                                children.iter().all(|c| self.evaluate_node(c, bbf, prep, ScopeContext::BasicBlock(func, bb_idx), cache, depth))
                             })
                         }
                     }
                     ScopeContext::BasicBlock(_, _) | ScopeContext::Instruction(_, _) => {
-                        children.iter().all(|c| self.evaluate_node(c, scope_features, all_features, ctx, cache, depth))
+                        children.iter().all(|c| self.evaluate_node(c, scope_features, prep, ctx, cache, depth))
                     }
                 }
             }
@@ -366,12 +406,12 @@ impl MatchEngine {
                 match ctx {
                     ScopeContext::File => {
                         all_features.functions.values().any(|func| {
-                            let ff = func.all_features();
-                            children.iter().all(|c| self.evaluate_node(c, &ff, all_features, ScopeContext::Function(func), cache, depth))
+                            let ff = prep.func_features(func);
+                            children.iter().all(|c| self.evaluate_node(c, ff, prep, ScopeContext::Function(func), cache, depth))
                         })
                     }
                     ScopeContext::Function(_) | ScopeContext::BasicBlock(_, _) | ScopeContext::Instruction(_, _) => {
-                        children.iter().all(|c| self.evaluate_node(c, scope_features, all_features, ctx, cache, depth))
+                        children.iter().all(|c| self.evaluate_node(c, scope_features, prep, ctx, cache, depth))
                     }
                 }
             }
@@ -393,13 +433,13 @@ impl MatchEngine {
                 *scope_features.mnemonics.get(mnem).unwrap_or(&0)
             }
             FeatureNode::Feature(Feature::Number(num)) => {
-                if scope_features.numbers.contains(&num.value) { 1 } else { 0 }
+                scope_features.number_count(num.value)
             }
             FeatureNode::Feature(Feature::Characteristic(char_type)) => {
                 scope_features.characteristic_count(char_type)
             }
             FeatureNode::Feature(Feature::Offset(offset_matcher)) => {
-                if scope_features.offsets.contains(&offset_matcher.value) { 1 } else { 0 }
+                scope_features.offset_count(offset_matcher.value)
             }
             FeatureNode::Feature(Feature::Export(matcher)) => {
                 count_string_matches(matcher, &scope_features.exports)
@@ -422,6 +462,25 @@ impl MatchEngine {
             FeatureNode::Feature(Feature::BasicBlockFeature) => {
                 scope_features.basic_block_count
             }
+            FeatureNode::Feature(Feature::Property(prop)) => {
+                scope_features
+                    .properties
+                    .iter()
+                    .filter(|(name, access)| {
+                        name == &prop.name
+                            && (prop.access == crate::rule::PropertyAccess::Any || *access == prop.access)
+                    })
+                    .count()
+            }
+            FeatureNode::Feature(Feature::Class(matcher)) => {
+                count_string_matches(matcher, &scope_features.classes)
+            }
+            FeatureNode::Feature(Feature::Namespace(matcher)) => {
+                count_string_matches(matcher, &scope_features.namespaces)
+            }
+            FeatureNode::Feature(Feature::FunctionName(matcher)) => {
+                count_string_matches(matcher, &scope_features.function_names)
+            }
             _ => 0,
         }
     }
@@ -443,11 +502,11 @@ impl MatchEngine {
         &self,
         target: &Rule,
         ctx: ScopeContext<'_>,
-        all_features: &ExtractedFeatures,
+        prep: &PreparedFeatures<'_>,
         cache: &MatchCache,
         depth: usize,
     ) -> usize {
-        let Some(m) = self.match_rule(target, all_features, cache, depth + 1) else {
+        let Some(m) = self.match_rule(target, prep, cache, depth + 1) else {
             return 0;
         };
 
@@ -472,20 +531,25 @@ impl MatchEngine {
             (StaticScope::BasicBlock, ScopeContext::Function(func)) => {
                 if func.basic_blocks.is_empty() {
                     if func.is_synthetic_func_only() {
-                        let ff = func.all_features();
-                        usize::from(self.evaluate_node(&target.features, &ff, all_features, ctx, cache, depth + 1))
+                        let ff = prep.func_features(func);
+                        usize::from(self.evaluate_node(&target.features, ff, prep, ctx, cache, depth + 1))
                     } else {
                         0
                     }
+                } else if !func.basic_block_addresses.is_empty() {
+                    func.basic_block_addresses
+                        .values()
+                        .filter(|bb_addr| m.locations.contains(bb_addr))
+                        .count()
                 } else {
                     func.basic_blocks
                         .keys()
                         .filter(|&&bb_idx| {
-                            let bbf = func.basic_block_all_features(bb_idx);
+                            let bbf = prep.bb_features(func, bb_idx);
                             self.evaluate_node(
                                 &target.features,
-                                &bbf,
-                                all_features,
+                                bbf,
+                                prep,
                                 ScopeContext::BasicBlock(func, bb_idx),
                                 cache,
                                 depth + 1,
@@ -496,17 +560,22 @@ impl MatchEngine {
             }
 
             // BasicBlock-scope target inside a BasicBlock context (e.g. `check for PEB BeingDebugged flag`
-            // requiring `match: PEB access` in the SAME basic block): evaluate on `(func, bb_idx)`.
+            // requiring `match: PEB access` in the SAME basic block): O(1) lookup via `basic_block_addresses`
+            // when available, otherwise zero-copy check on precomputed `prep.bb_features`.
             (StaticScope::BasicBlock, ScopeContext::BasicBlock(func, bb_idx)) => {
-                let bbf = func.basic_block_all_features(bb_idx);
-                usize::from(self.evaluate_node(
-                    &target.features,
-                    &bbf,
-                    all_features,
-                    ScopeContext::BasicBlock(func, bb_idx),
-                    cache,
-                    depth + 1,
-                ))
+                if let Some(bb_addr) = func.basic_block_addresses.get(&bb_idx) {
+                    usize::from(m.locations.contains(bb_addr))
+                } else {
+                    let bbf = prep.bb_features(func, bb_idx);
+                    usize::from(self.evaluate_node(
+                        &target.features,
+                        bbf,
+                        prep,
+                        ScopeContext::BasicBlock(func, bb_idx),
+                        cache,
+                        depth + 1,
+                    ))
+                }
             }
 
             // BasicBlock-scope target inside an Instruction context: check enclosing block if known.
@@ -517,11 +586,14 @@ impl MatchEngine {
                         .iter()
                         .find(|(_, addrs)| addrs.contains(&addr))
                     {
-                        let bbf = func.basic_block_all_features(bb_idx);
+                        if let Some(bb_addr) = func.basic_block_addresses.get(&bb_idx) {
+                            return usize::from(m.locations.contains(bb_addr));
+                        }
+                        let bbf = prep.bb_features(func, bb_idx);
                         return usize::from(self.evaluate_node(
                             &target.features,
-                            &bbf,
-                            all_features,
+                            bbf,
+                            prep,
                             ScopeContext::BasicBlock(func, bb_idx),
                             cache,
                             depth + 1,
@@ -534,8 +606,8 @@ impl MatchEngine {
             // Instruction-scope target inside a Function context: count matching instructions in `func`.
             (StaticScope::Instruction, ScopeContext::Function(func)) => {
                 if func.is_synthetic_func_only() {
-                    let ff = func.all_features();
-                    usize::from(self.evaluate_node(&target.features, &ff, all_features, ctx, cache, depth + 1))
+                    let ff = prep.func_features(func);
+                    usize::from(self.evaluate_node(&target.features, ff, prep, ctx, cache, depth + 1))
                 } else {
                     m.locations
                         .iter()
@@ -561,8 +633,8 @@ impl MatchEngine {
                 match inst_addr {
                     Some(addr) => usize::from(m.locations.contains(&addr)),
                     None if func.is_synthetic_func_only() => {
-                        let ff = func.all_features();
-                        usize::from(self.evaluate_node(&target.features, &ff, all_features, ctx, cache, depth + 1))
+                        let ff = prep.func_features(func);
+                        usize::from(self.evaluate_node(&target.features, ff, prep, ctx, cache, depth + 1))
                     }
                     None => 0,
                 }
@@ -577,12 +649,12 @@ impl MatchEngine {
         &self,
         rule_name: &str,
         ctx: ScopeContext<'_>,
-        all_features: &ExtractedFeatures,
+        prep: &PreparedFeatures<'_>,
         cache: &MatchCache,
         depth: usize,
     ) -> usize {
         if let Some(&idx) = self.rule_index.get(rule_name) {
-            return self.count_single_rule_in_context(&self.rules[idx], ctx, all_features, cache, depth);
+            return self.count_single_rule_in_context(&self.rules[idx], ctx, prep, cache, depth);
         }
         let prefix = format!("{}/", rule_name);
         self.rules
@@ -593,7 +665,7 @@ impl MatchEngine {
                     .as_ref()
                     .map_or(false, |ns| ns == rule_name || ns.starts_with(&prefix))
             })
-            .map(|r| self.count_single_rule_in_context(r, ctx, all_features, cache, depth))
+            .map(|r| self.count_single_rule_in_context(r, ctx, prep, cache, depth))
             .sum()
     }
 
@@ -620,10 +692,10 @@ impl MatchEngine {
 
             Feature::Bytes(pattern) => {
                 scope_features.bytes_sequences.iter().any(|seq| {
-                    if seq.len() != pattern.len() {
+                    if seq.len() < pattern.len() {
                         return false;
                     }
-                    seq.iter().zip(pattern.iter()).all(|(actual, expected)| {
+                    seq[..pattern.len()].iter().zip(pattern.iter()).all(|(actual, expected)| {
                         expected.map_or(true, |b| *actual == b)
                     })
                 })

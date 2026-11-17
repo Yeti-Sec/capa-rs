@@ -31,8 +31,14 @@ pub struct FeatureSet {
     pub strings: HashSet<String>,
     /// Numeric constants
     pub numbers: HashSet<i64>,
+    /// Numeric occurrence counts across instructions (backs `count(number(...))` rules)
+    #[serde(default)]
+    pub number_counts: HashMap<i64, usize>,
     /// Offset values
     pub offsets: HashSet<i64>,
+    /// Offset occurrence counts across instructions (backs `count(offset(...))` rules)
+    #[serde(default)]
+    pub offset_counts: HashMap<i64, usize>,
     /// Byte sequences found
     pub bytes_sequences: Vec<Vec<u8>>,
     /// Mnemonic counts
@@ -79,6 +85,24 @@ impl FeatureSet {
         }
     }
 
+    /// Return the occurrence count of a numeric constant across instructions in this scope.
+    pub fn number_count(&self, v: i64) -> usize {
+        match self.number_counts.get(&v) {
+            Some(&n) if n > 0 => n,
+            Some(_) => usize::from(self.numbers.contains(&v)),
+            None => usize::from(self.numbers.contains(&v)),
+        }
+    }
+
+    /// Return the occurrence count of a displacement/offset across instructions in this scope.
+    pub fn offset_count(&self, v: i64) -> usize {
+        match self.offset_counts.get(&v) {
+            Some(&n) if n > 0 => n,
+            Some(_) => usize::from(self.offsets.contains(&v)),
+            None => usize::from(self.offsets.contains(&v)),
+        }
+    }
+
     /// Merge another feature set into this one (summing additive counts across disjoint child scopes).
     pub fn merge(&mut self, other: &FeatureSet) {
         self.apis.extend(other.apis.iter().cloned());
@@ -87,7 +111,19 @@ impl FeatureSet {
         self.function_names.extend(other.function_names.iter().cloned());
         self.strings.extend(other.strings.iter().cloned());
         self.numbers.extend(other.numbers.iter().cloned());
+        for (&k, &n) in &other.number_counts {
+            if n > 0 {
+                self.numbers.insert(k);
+                *self.number_counts.entry(k).or_insert(0) += n;
+            }
+        }
         self.offsets.extend(other.offsets.iter().cloned());
+        for (&k, &n) in &other.offset_counts {
+            if n > 0 {
+                self.offsets.insert(k);
+                *self.offset_counts.entry(k).or_insert(0) += n;
+            }
+        }
         self.bytes_sequences.extend(other.bytes_sequences.iter().cloned());
         for (k, v) in &other.mnemonics {
             *self.mnemonics.entry(k.clone()).or_insert(0) += v;
@@ -184,7 +220,17 @@ impl FunctionFeatures {
                 if let Some(inst) = self.instructions.get(addr) {
                     merged.apis.extend(inst.apis.iter().cloned());
                     merged.numbers.extend(inst.numbers.iter().cloned());
+                    for (&k, &n) in &inst.number_counts {
+                        if n > 0 {
+                            *merged.number_counts.entry(k).or_insert(0) += n;
+                        }
+                    }
                     merged.offsets.extend(inst.offsets.iter().cloned());
+                    for (&k, &n) in &inst.offset_counts {
+                        if n > 0 {
+                            *merged.offset_counts.entry(k).or_insert(0) += n;
+                        }
+                    }
                     merged.strings.extend(inst.strings.iter().cloned());
                     merged.operands.extend(inst.operands.iter().cloned());
                     merged.bytes_sequences.extend(inst.bytes_sequences.iter().cloned());
@@ -206,14 +252,22 @@ impl FunctionFeatures {
         merged
     }
 
-    /// Get all features merged (function + basic blocks + instructions)
+    /// Get all features merged (function + basic blocks + instructions) without
+    /// double-counting `mnemonics` across basic blocks and instructions.
     pub fn all_features(&self) -> FeatureSet {
         let mut merged = self.features.clone();
+        let bb_has_mnemonics = self.basic_blocks.values().any(|bb| !bb.mnemonics.is_empty());
         for bb in self.basic_blocks.values() {
             merged.merge(bb);
         }
         for inst in self.instructions.values() {
-            merged.merge(inst);
+            if bb_has_mnemonics {
+                let mut without_mnem = inst.clone();
+                without_mnem.mnemonics.clear();
+                merged.merge(&without_mnem);
+            } else {
+                merged.merge(inst);
+            }
         }
         merged
     }

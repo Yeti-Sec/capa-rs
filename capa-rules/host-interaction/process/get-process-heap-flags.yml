@@ -15,17 +15,19 @@ rule:
       - al-khaser_x86.exe_:0x425470
   features:
     - and:
-      - match: PEB access
+      - or:
+        - match: PEB access
+        - api: GetProcessHeap
       - or:
         - and:
           - arch: i386
-          - number: 0x18 = PEB->ProcessHeap
+          - offset: 0x18 = PEB->ProcessHeap
           - or:
-            - number: 0x40 = ProcessHeap->HeapFlags >= Vista
-            - number: 0xC = ProcessHeap->HeapFlags < Vista
+            - offset: 0x40 = ProcessHeap->HeapFlags >= Vista
+            - offset: 0xC = ProcessHeap->HeapFlags < Vista
         - and:
           - arch: amd64
-          - number: 0x30 = PEB->ProcessHeap
+          - offset: 0x30 = PEB->ProcessHeap
           - or:
-            - number: 0x70 = ProcessHeap->HeapFlags >= Vista
-            - number: 0x14 = ProcessHeap->HeapFlags < Vista
+            - offset: 0x70 = ProcessHeap->HeapFlags >= Vista
+            - offset: 0x14 = ProcessHeap->HeapFlags < Vista

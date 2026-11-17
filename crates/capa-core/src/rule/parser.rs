@@ -205,9 +205,10 @@ fn parse_feature_by_key(key: &str, value: &Value) -> Result<FeatureNode> {
 
         // Match operator
         "match" => {
-            let rule_name = value
+            let raw = value
                 .as_str()
                 .ok_or_else(|| CapaError::SyntaxError("match value must be string".to_string()))?;
+            let rule_name = strip_inline_description(raw);
             Ok(FeatureNode::Match(rule_name.to_string()))
         }
 
@@ -224,23 +225,23 @@ fn parse_feature_by_key(key: &str, value: &Value) -> Result<FeatureNode> {
         }
 
         // Leaf features
-        "api" => parse_string_feature(value).map(|m| FeatureNode::Feature(Feature::Api(m))),
-        "import" => parse_string_feature(value).map(|m| FeatureNode::Feature(Feature::Import(m))),
-        "export" => parse_string_feature(value).map(|m| FeatureNode::Feature(Feature::Export(m))),
+        "api" => parse_symbol_feature(value).map(|m| FeatureNode::Feature(Feature::Api(m))),
+        "import" => parse_symbol_feature(value).map(|m| FeatureNode::Feature(Feature::Import(m))),
+        "export" => parse_symbol_feature(value).map(|m| FeatureNode::Feature(Feature::Export(m))),
         "function-name" => {
-            parse_string_feature(value).map(|m| FeatureNode::Feature(Feature::FunctionName(m)))
+            parse_symbol_feature(value).map(|m| FeatureNode::Feature(Feature::FunctionName(m)))
         }
         "string" => parse_string_feature(value).map(|m| FeatureNode::Feature(Feature::String(m))),
         "substring" => {
             parse_string_feature(value).map(|m| FeatureNode::Feature(Feature::Substring(m)))
         }
         "section" => {
-            parse_string_feature(value).map(|m| FeatureNode::Feature(Feature::Section(m)))
+            parse_symbol_feature(value).map(|m| FeatureNode::Feature(Feature::Section(m)))
         }
         "namespace" => {
-            parse_string_feature(value).map(|m| FeatureNode::Feature(Feature::Namespace(m)))
+            parse_symbol_feature(value).map(|m| FeatureNode::Feature(Feature::Namespace(m)))
         }
-        "class" => parse_string_feature(value).map(|m| FeatureNode::Feature(Feature::Class(m))),
+        "class" => parse_symbol_feature(value).map(|m| FeatureNode::Feature(Feature::Class(m))),
 
         "number" => parse_number_feature(value).map(|m| FeatureNode::Feature(Feature::Number(m))),
         "offset" => parse_offset_feature(value).map(|m| FeatureNode::Feature(Feature::Offset(m))),
@@ -248,12 +249,12 @@ fn parse_feature_by_key(key: &str, value: &Value) -> Result<FeatureNode> {
         "bytes" => parse_bytes_feature(value).map(|b| FeatureNode::Feature(Feature::Bytes(b))),
 
         "mnemonic" => {
-            let mnem = value
+            let raw = value
                 .as_str()
                 .ok_or_else(|| {
                     CapaError::SyntaxError("mnemonic value must be string".to_string())
-                })?
-                .to_string();
+                })?;
+            let mnem = strip_inline_description(raw).to_lowercase();
             Ok(FeatureNode::Feature(Feature::Mnemonic(mnem)))
         }
 
@@ -420,6 +421,20 @@ fn parse_boolean_children(value: &Value) -> Result<Vec<FeatureNode>> {
     }
 }
 
+/// Strip inline ` = description` comments used in CAPA rules (e.g. `add = add al, al`,
+/// `ws2_32.#23 = socket`) while leaving `/regex/` literals intact.
+fn strip_inline_description(s: &str) -> &str {
+    let trimmed = s.trim();
+    if trimmed.starts_with('/') {
+        return trimmed;
+    }
+    if let Some(eq_idx) = trimmed.find(" = ") {
+        trimmed[..eq_idx].trim()
+    } else {
+        trimmed
+    }
+}
+
 fn parse_string_feature(value: &Value) -> Result<StringMatcher> {
     let s = value
         .as_str()
@@ -452,6 +467,19 @@ fn parse_string_feature(value: &Value) -> Result<StringMatcher> {
     }
 
     Ok(StringMatcher::Exact(s.to_string()))
+}
+
+/// Like `parse_string_feature`, but strips ` = description` comments on exact symbol names
+/// (e.g. `api: ws2_32.#23 = socket`) while leaving `/regex/` patterns untouched (`string:` /
+/// `substring:` still preserve literal ` = ` inside string values).
+fn parse_symbol_feature(value: &Value) -> Result<StringMatcher> {
+    let s = value
+        .as_str()
+        .ok_or_else(|| CapaError::SyntaxError("Symbol feature value must be string".to_string()))?;
+    if s.starts_with('/') {
+        return parse_string_feature(value);
+    }
+    Ok(StringMatcher::Exact(strip_inline_description(s).to_string()))
 }
 
 fn parse_number_feature(value: &Value) -> Result<NumberMatcher> {
@@ -493,6 +521,10 @@ fn parse_number_string(s: &str) -> Result<i64> {
     } else if s.starts_with("0o") || s.starts_with("0O") {
         i64::from_str_radix(&s[2..], 8)
             .map_err(|_| CapaError::SyntaxError(format!("Invalid octal number: {}", s)))
+    } else if let Some(hex) = s.strip_prefix("-0x").or_else(|| s.strip_prefix("-0X")) {
+        i64::from_str_radix(hex, 16)
+            .map(|v| -v)
+            .map_err(|_| CapaError::SyntaxError(format!("Invalid negative hex number: {}", s)))
     } else if s.starts_with('-') {
         s.parse::<i64>()
             .map_err(|_| CapaError::SyntaxError(format!("Invalid number: {}", s)))
@@ -756,10 +788,34 @@ fn parse_feature_from_count_spec(spec: &str) -> Result<FeatureNode> {
                 })))
             }
             "section" => Ok(FeatureNode::Feature(Feature::Section(StringMatcher::Exact(
+                strip_inline_description(feature_value).to_string(),
+            )))),
+            "property" => Ok(FeatureNode::Feature(Feature::Property(PropertyMatcher {
+                name: strip_inline_description(feature_value).to_string(),
+                access: PropertyAccess::Any,
+            }))),
+            "property/read" => Ok(FeatureNode::Feature(Feature::Property(PropertyMatcher {
+                name: strip_inline_description(feature_value).to_string(),
+                access: PropertyAccess::Read,
+            }))),
+            "property/write" => Ok(FeatureNode::Feature(Feature::Property(PropertyMatcher {
+                name: strip_inline_description(feature_value).to_string(),
+                access: PropertyAccess::Write,
+            }))),
+            "class" => Ok(FeatureNode::Feature(Feature::Class(StringMatcher::Exact(
+                strip_inline_description(feature_value).to_string(),
+            )))),
+            "namespace" => Ok(FeatureNode::Feature(Feature::Namespace(StringMatcher::Exact(
+                strip_inline_description(feature_value).to_string(),
+            )))),
+            "function-name" => Ok(FeatureNode::Feature(Feature::FunctionName(StringMatcher::Exact(
+                strip_inline_description(feature_value).to_string(),
+            )))),
+            "substring" => Ok(FeatureNode::Feature(Feature::Substring(StringMatcher::Exact(
                 feature_value.to_string(),
             )))),
             // Match another rule (for count(match(rule_name)))
-            "match" => Ok(FeatureNode::Match(feature_value.to_string())),
+            "match" => Ok(FeatureNode::Match(strip_inline_description(feature_value).to_string())),
             _ => Err(CapaError::SyntaxError(format!(
                 "Unknown count feature type: {}",
                 feature_type
