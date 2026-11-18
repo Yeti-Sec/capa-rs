@@ -121,12 +121,14 @@ impl MatchEngine {
         let cache: MatchCache = Arc::new(DashMap::new());
 
         // Process rules in parallel
-        self.rules
+        let main: Vec<RuleMatch> = self
+            .rules
             .par_iter()
             .filter_map(|rule| {
                 self.match_rule(rule, &prep, &cache, 0)
             })
-            .collect()
+            .collect();
+        self.merge_virtual_matches(features, main, &prep, &cache)
     }
 
     /// Match all rules sequentially (for debugging/testing)
@@ -134,12 +136,107 @@ impl MatchEngine {
         let prep = PreparedFeatures::new(features);
         let cache: MatchCache = Arc::new(DashMap::new());
 
-        self.rules
+        let main: Vec<RuleMatch> = self
+            .rules
             .iter()
             .filter_map(|rule| {
                 self.match_rule(rule, &prep, &cache, 0)
             })
-            .collect()
+            .collect();
+        self.merge_virtual_matches(features, main, &prep, &cache)
+    }
+
+    /// Additive second pass over `features.virtual_functions` (function-scope rules only), then
+    /// re-evaluation of file-scope rules so their `match:` dependencies see the merged
+    /// function-scope results.
+    ///
+    /// * The virtual functions are evaluated in their own `ExtractedFeatures` (so the primary
+    ///   evaluation, file-level counts and caches are untouched). Rules are evaluated in
+    ///   parallel; results are collected in rule order, so the output is deterministic.
+    /// * New locations are added to the primary match (existing locations and their order are
+    ///   kept, new ones are appended sorted); a function-scope rule that matched nowhere in the
+    ///   primary pass but matches a virtual function is appended as a new match.
+    /// * If any function-scope result changed, the primary cache is updated with the merged
+    ///   results and the file-scope rules are re-evaluated against it. A file-scope rule that
+    ///   matched in the primary pass is never altered or removed (so `not:`/count rules cannot
+    ///   lose a primary match); a file-scope rule that did not match but now does is appended.
+    fn merge_virtual_matches(
+        &self,
+        features: &ExtractedFeatures,
+        mut main: Vec<RuleMatch>,
+        prep: &PreparedFeatures<'_>,
+        cache: &MatchCache,
+    ) -> Vec<RuleMatch> {
+        if features.virtual_functions.is_empty() {
+            return main;
+        }
+        let mut vfeat = ExtractedFeatures::new(features.os, features.arch, features.format);
+        vfeat.file = features.file.clone();
+        for vf in &features.virtual_functions {
+            vfeat.functions.entry(vf.address).or_insert_with(|| vf.clone());
+        }
+        let vprep = PreparedFeatures::new(&vfeat);
+        let vcache: MatchCache = Arc::new(DashMap::new());
+
+        let vmatches: Vec<RuleMatch> = self
+            .rules
+            .par_iter()
+            .filter(|r| r.meta.scopes.static_scope == StaticScope::Function)
+            .filter_map(|r| self.match_rule(r, &vprep, &vcache, 0))
+            .collect();
+
+        let mut changed: Vec<String> = Vec::new();
+        for vm in vmatches {
+            if let Some(existing) = main.iter_mut().find(|m| m.name == vm.name) {
+                let mut added: Vec<Address> = vm
+                    .locations
+                    .into_iter()
+                    .filter(|l| !existing.locations.contains(l))
+                    .collect();
+                for n in vm.function_names {
+                    if !existing.function_names.contains(&n) {
+                        existing.function_names.push(n);
+                    }
+                }
+                if !added.is_empty() {
+                    added.sort();
+                    existing.locations.extend(added);
+                    existing.match_count = existing.locations.len();
+                    changed.push(existing.name.clone());
+                    cache.insert(existing.name.clone(), Some(existing.clone()));
+                }
+            } else {
+                let mut vm = vm;
+                vm.locations.sort();
+                vm.match_count = vm.locations.len();
+                changed.push(vm.name.clone());
+                cache.insert(vm.name.clone(), Some(vm.clone()));
+                main.push(vm);
+            }
+        }
+        if changed.is_empty() {
+            return main;
+        }
+
+        // Re-evaluate file-scope rules with the merged function-scope results visible.
+        let file_rules: Vec<&Rule> = self
+            .rules
+            .iter()
+            .filter(|r| r.meta.scopes.static_scope == StaticScope::File)
+            .collect();
+        for r in &file_rules {
+            cache.remove(&r.meta.name);
+        }
+        let reeval: Vec<RuleMatch> = file_rules
+            .par_iter()
+            .filter_map(|r| self.match_rule(r, prep, cache, 0))
+            .collect();
+        for m in reeval {
+            if !main.iter().any(|x| x.name == m.name) {
+                main.push(m);
+            }
+        }
+        main
     }
 
     /// Match a single rule by name
@@ -148,9 +245,15 @@ impl MatchEngine {
         name: &str,
         features: &ExtractedFeatures,
     ) -> Option<RuleMatch> {
+        let idx = self.rule_index.get(name)?;
+        if !features.virtual_functions.is_empty() {
+            // Results depend on the additive virtual pass and on re-evaluated file-scope
+            // dependents, so take them from the full evaluation to stay consistent with
+            // `match_all`.
+            return self.match_all_sequential(features).into_iter().find(|m| m.name == name);
+        }
         let prep = PreparedFeatures::new(features);
         let cache: MatchCache = Arc::new(DashMap::new());
-        let idx = self.rule_index.get(name)?;
         let rule = &self.rules[*idx];
         self.match_rule(rule, &prep, &cache, 0)
     }

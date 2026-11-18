@@ -50,3 +50,45 @@ pub fn generate_symbols(module: &str, api: &str, include_dll: bool) -> Vec<Strin
 
     symbols
 }
+
+/// Decode an `FF 15 disp32` (`call [mem]`) at `ea` and return the memory slot address
+/// (RIP-relative on x64, absolute on x86). Used only to resolve a `jmp` whose target
+/// instruction itself is an IAT call (capa `viv/insn.py:98-141` follows `get_coderef_from`
+/// from any jump target, not only function starts).
+#[allow(dead_code)]
+pub(crate) fn decode_raw_iat_call_slot(raw: &[u8], ea: u64, is_64: bool) -> Option<u64> {
+    if raw.len() >= 6 && raw[0] == 0xFF && raw[1] == 0x15 {
+        let raw32 = [raw[2], raw[3], raw[4], raw[5]];
+        return Some(if is_64 {
+            ((ea as i64) + 6 + i32::from_le_bytes(raw32) as i64) as u64
+        } else {
+            u32::from_le_bytes(raw32) as u64
+        });
+    }
+    None
+}
+
+#[cfg(test)]
+mod iat_call_slot_tests {
+    use super::decode_raw_iat_call_slot;
+
+    #[test]
+    fn decodes_ff15_slot() {
+        // 0x1a0005284: ff 15 3e d9 02 00 -> slot 0x1a0005284 + 6 + 0x2d93e
+        assert_eq!(
+            decode_raw_iat_call_slot(&[0xff, 0x15, 0x3e, 0xd9, 0x02, 0x00], 0x1a0005284, true),
+            Some(0x1a0005284 + 6 + 0x2d93e)
+        );
+        assert_eq!(
+            decode_raw_iat_call_slot(&[0xff, 0x15, 0x38, 0x30, 0x47, 0x00], 0x401000, false),
+            Some(0x473038)
+        );
+    }
+
+    #[test]
+    fn rejects_other_encodings() {
+        assert_eq!(decode_raw_iat_call_slot(&[0xff, 0x25, 0, 0, 0, 0], 0x1000, true), None);
+        assert_eq!(decode_raw_iat_call_slot(&[0xe8, 0, 0, 0, 0, 0], 0x1000, true), None);
+        assert_eq!(decode_raw_iat_call_slot(&[0xff, 0x15, 0], 0x1000, true), None);
+    }
+}

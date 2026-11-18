@@ -301,6 +301,69 @@ fn insert_flirt_library_callee_api(
     }
 }
 
+/// capa `SECURITY_COOKIE_BYTES_DELTA` (`viv/insn.py`).
+const SECURITY_COOKIE_BYTES_DELTA: u64 = 0x40;
+
+/// True if `op` names an x86 register (as printed by IDA / iced), i.e. a Vivisect `isReg()` operand.
+fn is_x86_register_operand(op: &str) -> bool {
+    let o = op.trim().to_ascii_lowercase();
+    const FIXED: &[&str] = &[
+        "al", "ah", "bl", "bh", "cl", "ch", "dl", "dh", "ax", "bx", "cx", "dx", "sp", "bp", "si", "di",
+        "sil", "dil", "bpl", "spl", "eax", "ebx", "ecx", "edx", "esp", "ebp", "esi", "edi", "rax", "rbx",
+        "rcx", "rdx", "rsp", "rbp", "rsi", "rdi", "ip", "eip", "rip", "cs", "ds", "es", "fs", "gs", "ss",
+    ];
+    if FIXED.contains(&o.as_str()) {
+        return true;
+    }
+    // r8..r15 with optional b/w/d suffix
+    if let Some(rest) = o.strip_prefix('r') {
+        let digits = rest.trim_end_matches(|c| c == 'b' || c == 'w' || c == 'd');
+        if let Ok(n) = digits.parse::<u32>() {
+            if (8..=15).contains(&n) && rest.len() - digits.len() <= 1 {
+                return true;
+            }
+        }
+    }
+    // mm0-7 / xmm0-31 / ymm0-31 / zmm0-31
+    for pre in ["xmm", "ymm", "zmm", "mm"] {
+        if let Some(rest) = o.strip_prefix(pre) {
+            if !rest.is_empty() && rest.chars().all(|c| c.is_ascii_digit()) {
+                return true;
+            }
+        }
+    }
+    false
+}
+
+/// Mirror of capa `viv/insn.py:is_security_cookie`: `op2` is the second operand (lowercased).
+/// Not a cookie when operand 1 is a register other than esp/ebp/rsp/rbp. Otherwise a cookie
+/// when the instruction is in the function's first basic block within 0x40 bytes of the block
+/// start, or in a block ending in `ret` within 0x40 bytes of the block end.
+fn is_security_cookie_xor(
+    op2: &str,
+    insn: &crate::lifter::LiftedInstruction,
+    bb: &LiftedBasicBlock,
+    is_entry_bb: bool,
+) -> bool {
+    if is_x86_register_operand(op2) && !matches!(op2, "esp" | "ebp" | "rsp" | "rbp") {
+        return false;
+    }
+    if is_entry_bb && insn.address < bb.address + SECURITY_COOKIE_BYTES_DELTA {
+        return true;
+    }
+    if let Some(last) = bb.instructions.last() {
+        // viv `isReturn()` covers ret*/iret*
+        if last.mnemonic.starts_with("ret") || last.mnemonic.starts_with("iret") {
+            // bb.va + bb.size == address just past the last instruction
+            let bb_end = last.address + last.bytes.len() as u64;
+            if insn.address + SECURITY_COOKIE_BYTES_DELTA > bb_end {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 /// Check if a function's basic-block directed graph contains a multi-block cycle
 /// (Tarjan strongly connected component with `len >= 2`, matching Python capa's
 /// `loops.has_loop(edges, threshold=2)`). Falls back to `bb.is_loop_header` only
@@ -609,87 +672,16 @@ impl BinaryExtractor {
                 continue;
             }
 
-            let mut func_features = FunctionFeatures::new(Address(*addr));
-            func_features.name = func.name.clone();
-
-            // Check for multi-block CFG cycles (Tarjan SCC >= 2, matching Python capa)
-            if has_cfg_loop(&func.basic_blocks) {
-                func_features.features.add_characteristic(CharacteristicType::Loop);
-            }
-
-            // Check for recursive calls
-            if func.callees.contains(addr) {
-                func_features.features.add_characteristic(CharacteristicType::RecursiveCall);
-            }
-
-            // Incoming callers count (`calls to`)
-            let unique_callers: std::collections::HashSet<u64> = func.callers.iter().copied().collect();
-            for _ in 0..unique_callers.len() {
-                func_features.features.add_characteristic(CharacteristicType::CallsTo);
-            }
-
-            // Outgoing unique call targets count (`calls from`), deduplicated by target
-            // address to match Python capa's `FeatureSet[Characteristic("calls from")]` set.
-            let unique_callees: std::collections::HashSet<u64> = func.callees.iter().copied().collect();
-            for _ in 0..unique_callees.len() {
-                func_features.features.add_characteristic(CharacteristicType::CallsFrom);
-            }
-
-            // Propagate `mov reg, [IAT] -> call reg / jmp reg` across CFG blocks
-            let reg_indirect_apis_at = resolve_reg_indirect_iat_calls(self, func, info, program);
-
-            // Extract basic block features
-            for bb in &func.basic_blocks {
-                let mut bb_features = self.extract_basic_block_features(bb, info, program);
-                for insn in &bb.instructions {
-                    if let Some(reg_apis) = reg_indirect_apis_at.get(&insn.address) {
-                        for (module, name) in reg_apis {
-                            insert_api(&mut bb_features.apis, module, name);
-                        }
-                    }
-                }
-
-                // Detect stack string construction at BB scope
-                if self.detect_stack_strings_in_bb(bb) {
-                    bb_features.add_characteristic(CharacteristicType::StackString);
-                }
-
-                // Debug: Check for blocks with both TightLoop and Nzxor
-                if bb_features.characteristics.contains(&CharacteristicType::TightLoop)
-                    && bb_features.characteristics.contains(&CharacteristicType::Nzxor) {
-                    // This block has tight loop with nzxor - good for XOR encryption detection
-                }
-
-                func_features.basic_block_addresses.insert(bb.index, Address(bb.address));
-                func_features.basic_block_instructions.insert(
-                    bb.index,
-                    bb.instructions.iter().map(|i| Address(i.address)).collect(),
-                );
-                func_features.basic_blocks.insert(bb.index, bb_features.clone());
-
-                // Roll up set-valued summary fields to function level without
-                // duplicating additive counts (`mnemonics`, `characteristic_counts`)
-                // that `func.all_features()` already sums across basic blocks.
-                func_features.features.merge_sets_only(&bb_features);
-            }
-
-            // Set basic block count for count(basic block) feature
-            func_features.features.basic_block_count = func.basic_blocks.len();
-
-            // Extract instruction features
-            for bb in &func.basic_blocks {
-                for insn in &bb.instructions {
-                    let mut insn_features = self.extract_instruction_features(insn, info, program, bytes, &va_map);
-                    if let Some(reg_apis) = reg_indirect_apis_at.get(&insn.address) {
-                        for (module, name) in reg_apis {
-                            insert_api(&mut insn_features.apis, module, name);
-                        }
-                    }
-                    func_features.instructions.insert(Address(insn.address), insn_features.clone());
-                }
-            }
-
+            let func_features = self.extract_function_features(addr, func, info, program, bytes, &va_map);
             features.functions.insert(Address(*addr), func_features);
+        }
+
+        // Additive virtual functions (jmp-stub / fall-through chains merged with their target
+        // functions). They live in `features.virtual_functions` only; the per-function
+        // evaluation above is unchanged.
+        for vfunc in crate::virtual_functions::build_virtual_functions(program) {
+            let vff = self.extract_function_features(&vfunc.address, &vfunc, info, program, bytes, &va_map);
+            features.virtual_functions.push(vff);
         }
 
         // Roll up set-valued summary fields to file level (for CLI summary stats)
@@ -706,8 +698,112 @@ impl BinaryExtractor {
         features
     }
 
+    /// Extract the features of one (possibly virtual) function.
+    fn extract_function_features(
+        &self,
+        addr: &u64,
+        func: &crate::lifter::LiftedFunction,
+        info: &BinaryInfo,
+        program: &LiftedProgram,
+        bytes: &[u8],
+        va_map: &BinaryVaMap,
+    ) -> FunctionFeatures {
+        let mut func_features = FunctionFeatures::new(Address(*addr));
+        func_features.name = func.name.clone();
+
+        // Check for multi-block CFG cycles (Tarjan SCC >= 2, matching Python capa)
+        if has_cfg_loop(&func.basic_blocks) {
+            func_features.features.add_characteristic(CharacteristicType::Loop);
+        }
+
+        // Check for recursive calls
+        if func.callees.contains(addr) {
+            func_features.features.add_characteristic(CharacteristicType::RecursiveCall);
+        }
+
+        // Incoming callers count (`calls to`)
+        let unique_callers: std::collections::HashSet<u64> = func.callers.iter().copied().collect();
+        for _ in 0..unique_callers.len() {
+            func_features.features.add_characteristic(CharacteristicType::CallsTo);
+        }
+
+        // Outgoing unique call targets count (`calls from`), deduplicated by target
+        // address to match Python capa's `FeatureSet[Characteristic("calls from")]` set.
+        let unique_callees: std::collections::HashSet<u64> = func
+            .callees
+            .iter()
+            .copied()
+            .filter(|c| !func.indirect_callees.contains(c))
+            .collect();
+        for _ in 0..unique_callees.len() {
+            func_features.features.add_characteristic(CharacteristicType::CallsFrom);
+        }
+
+        // Propagate `mov reg, [IAT] -> call reg / jmp reg` across CFG blocks
+        let reg_indirect_apis_at = resolve_reg_indirect_iat_calls(self, func, info, program);
+        let min_bb_addr = func.basic_blocks.iter().map(|b| b.address).min().unwrap_or(*addr);
+
+        // Extract basic block features
+        for bb in &func.basic_blocks {
+            // capa `is_security_cookie`: `bb0 = f.basic_blocks[0]`, and viv-utils sorts
+            // `Function.basic_blocks` by VA (`viv_utils/__init__.py:147-149`), so bb0 is the
+            // lowest-address block (not necessarily the entry block).
+            let is_entry_bb = bb.address == min_bb_addr;
+            let mut bb_features = self.extract_basic_block_features(bb, info, program, is_entry_bb);
+            for insn in &bb.instructions {
+                if let Some(reg_apis) = reg_indirect_apis_at.get(&insn.address) {
+                    for (module, name) in reg_apis {
+                        insert_api(&mut bb_features.apis, module, name);
+                    }
+                }
+            }
+
+            // Detect stack string construction at BB scope
+            if self.detect_stack_strings_in_bb(bb) {
+                bb_features.add_characteristic(CharacteristicType::StackString);
+            }
+
+            // Debug: Check for blocks with both TightLoop and Nzxor
+            if bb_features.characteristics.contains(&CharacteristicType::TightLoop)
+                && bb_features.characteristics.contains(&CharacteristicType::Nzxor) {
+                // This block has tight loop with nzxor - good for XOR encryption detection
+            }
+
+            func_features.basic_block_addresses.insert(bb.index, Address(bb.address));
+            func_features.basic_block_instructions.insert(
+                bb.index,
+                bb.instructions.iter().map(|i| Address(i.address)).collect(),
+            );
+            func_features.basic_blocks.insert(bb.index, bb_features.clone());
+
+            // Roll up set-valued summary fields to function level without
+            // duplicating additive counts (`mnemonics`, `characteristic_counts`)
+            // that `func.all_features()` already sums across basic blocks.
+            func_features.features.merge_sets_only(&bb_features);
+        }
+
+        // Set basic block count for count(basic block) feature
+        func_features.features.basic_block_count = func.basic_blocks.len();
+
+        // Extract instruction features
+        for bb in &func.basic_blocks {
+            for insn in &bb.instructions {
+                let mut insn_features = self.extract_instruction_features(insn, info, program, bytes, &va_map);
+                if let Some(reg_apis) = reg_indirect_apis_at.get(&insn.address) {
+                    for (module, name) in reg_apis {
+                        insert_api(&mut insn_features.apis, module, name);
+                    }
+                }
+                func_features.instructions.insert(Address(insn.address), insn_features.clone());
+            }
+        }
+
+
+        func_features
+    }
+
     /// Extract features from a basic block
-    fn extract_basic_block_features(&self, bb: &LiftedBasicBlock, info: &BinaryInfo, program: &LiftedProgram) -> FeatureSet {
+    fn extract_basic_block_features(&self, bb: &LiftedBasicBlock, info: &BinaryInfo, program: &LiftedProgram, is_entry_bb: bool) -> FeatureSet {
         let mut features = FeatureSet::new();
 
         // Check for tight loop: basic block branches directly back to itself
@@ -726,7 +822,7 @@ impl BinaryExtractor {
 
         // Check for nzxor in block (counted per instruction for count(characteristic(nzxor)))
         for insn in &bb.instructions {
-            if self.is_nzxor(insn) {
+            if self.is_nzxor_in(insn, bb, is_entry_bb) {
                 features.add_characteristic(CharacteristicType::Nzxor);
             }
         }
@@ -1075,42 +1171,49 @@ impl BinaryExtractor {
         features
     }
 
-    /// Check if instruction is a non-zero XOR (excluding zeroing XORs and stack/frame
-    /// security-cookie XORs such as `xor rax, rsp` / `xor rcx, rsp` / `xor eax, ebp`).
-    fn is_nzxor(&self, insn: &crate::lifter::LiftedInstruction) -> bool {
-        if !matches!(insn.mnemonic.as_str(), "xor" | "pxor" | "eor") {
+    /// Non-zero XOR, mirroring capa `viv/insn.py` `extract_insn_nzxor_characteristic_features`:
+    /// mnemonic in {xor, xorpd, xorps, pxor}, operands differ, and not a security-cookie
+    /// XOR (`is_security_cookie`). `is_entry_bb` tells whether `bb` is the function's lowest-address (bb0)
+    /// basic block (capa: `bb == f.basic_blocks[0]`).
+    fn is_nzxor_in(
+        &self,
+        insn: &crate::lifter::LiftedInstruction,
+        bb: &LiftedBasicBlock,
+        is_entry_bb: bool,
+    ) -> bool {
+        match insn.mnemonic.as_str() {
+            "xor" | "xorpd" | "xorps" | "pxor" => {}
+            // AArch64/ARM exclusive-or: not covered by capa's x86 logic.
+            "eor" => {
+                return insn.operands.len() >= 2
+                    && insn.operands[0].trim().to_lowercase() != insn.operands[1].trim().to_lowercase();
+            }
+            _ => return false,
+        }
+        if insn.operands.len() < 2 {
             return false;
         }
-
-        if insn.operands.len() >= 2 {
-            let op1 = insn.operands[0].trim().to_lowercase();
-            let op2 = insn.operands[1].trim().to_lowercase();
-
-            // Same register XOR (zeroing) is NOT nzxor
-            if op1 == op2 {
-                return false;
-            }
-
-            // XOR with 0 is NOT nzxor
-            if op2 == "0" || op2 == "0x0" {
-                return false;
-            }
-
-            // Stack/frame pointer XORs (`xor rax, rsp`, `xor rcx, rsp`, `xor eax, ebp`)
-            // are MSVC `/GS` stack security cookie checks, excluded by Python capa.
-            const STACK_REGS: &[&str] = &["esp", "ebp", "rsp", "rbp"];
-            if STACK_REGS.contains(&op1.as_str())
-                || STACK_REGS.contains(&op2.as_str())
-                || op1.contains("security_cookie")
-                || op2.contains("security_cookie")
-            {
-                return false;
-            }
-
-            return true;
+        let op1 = insn.operands[0].trim().to_lowercase();
+        let op2 = insn.operands[1].trim().to_lowercase();
+        if op1 == op2 {
+            return false;
         }
+        !is_security_cookie_xor(&op2, insn, bb, is_entry_bb)
+    }
 
-        false
+    /// Context-free variant used by unit tests (not the entry block, not a return block).
+    #[cfg(test)]
+    fn is_nzxor(&self, insn: &crate::lifter::LiftedInstruction) -> bool {
+        let bb = LiftedBasicBlock {
+            index: 0,
+            address: insn.address,
+            end_address: insn.address,
+            instructions: vec![],
+            successors: vec![],
+            predecessors: vec![],
+            is_loop_header: false,
+        };
+        self.is_nzxor_in(insn, &bb, false)
     }
 
     /// Issue 9: Detect COM class/interface features from imports and strings
@@ -1646,7 +1749,7 @@ mod tests {
         };
         assert!(extractor.is_nzxor(&insn_nzxor));
 
-        // XOR with immediate 0 - NOT nzxor
+        // capa has no "xor with immediate 0" exclusion (`viv/insn.py`): operands differ -> nzxor
         let insn_zero_imm = crate::lifter::LiftedInstruction {
             address: 0x1000,
             mnemonic: "xor".to_string(),
@@ -1655,7 +1758,232 @@ mod tests {
             bytes: vec![0x83, 0xf0, 0x00],
             operations: vec![],
         };
-        assert!(!extractor.is_nzxor(&insn_zero_imm));
+        assert!(extractor.is_nzxor(&insn_zero_imm));
+    }
+
+    fn mk_insn(addr: u64, mnem: &str, ops: &[&str], len: usize) -> crate::lifter::LiftedInstruction {
+        crate::lifter::LiftedInstruction {
+            address: addr,
+            mnemonic: mnem.to_string(),
+            operands: ops.iter().map(|o| o.to_string()).collect(),
+            operand_values: vec![None; ops.len()],
+            bytes: vec![0x90; len],
+            operations: vec![],
+        }
+    }
+
+    fn mk_bb(insns: Vec<crate::lifter::LiftedInstruction>) -> LiftedBasicBlock {
+        LiftedBasicBlock {
+            index: 0,
+            address: insns[0].address,
+            end_address: insns[insns.len() - 1].address,
+            instructions: insns,
+            successors: vec![],
+            predecessors: vec![],
+            is_loop_header: false,
+        }
+    }
+
+    #[test]
+    fn test_nzxor_accepts_sse_xor_like_capa() {
+        let e = BinaryExtractor::new();
+        for m in ["xor", "xorps", "xorpd", "pxor"] {
+            let i = mk_insn(0x1000, m, &["xmm2", "xmm0"], 3);
+            assert!(e.is_nzxor(&i), "{m} must be nzxor");
+        }
+        // same operands (zeroing) never nzxor
+        assert!(!e.is_nzxor(&mk_insn(0x1000, "xorps", &["xmm0", "xmm0"], 3)));
+        assert!(!e.is_nzxor(&mk_insn(0x1000, "andps", &["xmm0", "xmm1"], 3)));
+    }
+
+    #[test]
+    fn test_security_cookie_exclusion_is_position_based_like_capa() {
+        let e = BinaryExtractor::new();
+        let xor_ebp = |a| mk_insn(a, "xor", &["edi", "ebp"], 2);
+        // entry block, within 0x40 of block start, stack-reg operand 2 -> cookie (excluded)
+        let bb = mk_bb(vec![mk_insn(0x1000, "mov", &["eax", "1"], 5), xor_ebp(0x1005), mk_insn(0x1007, "nop", &[], 1)]);
+        assert!(!e.is_nzxor_in(&bb.instructions[1], &bb, true));
+        // same xor in a non-entry, non-return block -> nzxor (capa keeps it)
+        assert!(e.is_nzxor_in(&bb.instructions[1], &bb, false));
+        // entry block but beyond 0x40 bytes of block start -> nzxor
+        let far = mk_bb(vec![mk_insn(0x1000, "mov", &["eax", "1"], 5), xor_ebp(0x1000 + 0x40)]);
+        assert!(e.is_nzxor_in(&far.instructions[1], &far, true));
+        // block ending in ret, xor within 0x40 bytes of the end -> cookie even outside entry block
+        let tail = mk_bb(vec![xor_ebp(0x2000), mk_insn(0x2002, "add", &["esp", "8"], 3), mk_insn(0x2005, "retn", &[], 1)]);
+        assert!(!e.is_nzxor_in(&tail.instructions[0], &tail, false));
+        // block ending in ret, xor far from the end (> 0x40 bytes before block end) -> nzxor
+        let mut long = vec![xor_ebp(0x3000)];
+        long.push(mk_insn(0x3002, "nop", &[], 0x50));
+        long.push(mk_insn(0x3052, "ret", &[], 1));
+        let long = mk_bb(long);
+        assert!(e.is_nzxor_in(&long.instructions[0], &long, false));
+        // operand 2 is a non-stack register -> never a cookie, even in the entry block
+        let reg = mk_bb(vec![mk_insn(0x4000, "xor", &["eax", "ebx"], 2)]);
+        assert!(e.is_nzxor_in(&reg.instructions[0], &reg, true));
+        // operand 2 memory (not a register) in entry block start -> cookie (capa quirk), mirrored
+        let mem = mk_bb(vec![mk_insn(0x5000, "xor", &["eax", "[rip+0x10]"], 6)]);
+        assert!(!e.is_nzxor_in(&mem.instructions[0], &mem, true));
+    }
+
+    #[test]
+    fn test_is_x86_register_operand() {
+        for r in ["eax", "RBP", "r8", "r15d", "r9b", "xmm0", "ymm15", "mm3", "esp", "gs"] {
+            assert!(is_x86_register_operand(r), "{r}");
+        }
+        for r in ["[eax]", "0x10", "r16", "foo", "dword ptr [ebp-4]", "xmm", "offset x"] {
+            assert!(!is_x86_register_operand(r), "{r}");
+        }
+    }
+
+    fn mk_program(functions: HashMap<u64, crate::lifter::LiftedFunction>) -> crate::lifter::LiftedProgram {
+        crate::lifter::LiftedProgram {
+            functions,
+            entry_point: 0x1000,
+            info: crate::loader::BinaryInfo {
+                os: OsType::Windows,
+                arch: ArchType::Amd64,
+                format: capa_core::rule::FormatType::Pe,
+                imports: vec![],
+                exports: vec![],
+                sections: vec![],
+                strings: vec![],
+                is_dotnet: false,
+                has_forwarded_exports: false,
+                is_mixed_mode: false,
+                entry_point: 0x1000,
+            },
+            strings_at: HashMap::new(),
+            iat_entries: HashMap::new(),
+            thunk_targets: HashMap::new(),
+            import_apis_at: HashMap::new(),
+            insn_strings_at: HashMap::new(),
+            insn_bytes_at: HashMap::new(),
+        }
+    }
+
+    #[test]
+    fn test_calls_from_excludes_register_indirect_only_targets() {
+        let extractor = BinaryExtractor::new();
+        let mut functions = HashMap::new();
+        functions.insert(
+            0x1000,
+            crate::lifter::LiftedFunction {
+                address: 0x1000,
+                name: None,
+                basic_blocks: vec![mk_bb(vec![mk_insn(0x1000, "call", &["r15"], 3)])],
+                // 0x4000 is reached only through `call r15`; 0x3000 through a direct call and
+                // also through a register call (stays counted).
+                callees: vec![0x2000, 0x3000, 0x3000, 0x4000],
+                callers: vec![],
+                is_thunk: false,
+                thunk_target: None,
+                is_library: false,
+                indirect_callees: vec![0x4000],
+            },
+        );
+        let extracted = extractor.extract_from_lifted(&mk_program(functions), &[]);
+        let f = &extracted.functions[&Address(0x1000)];
+        assert_eq!(
+            f.all_features().characteristic_count(&CharacteristicType::CallsFrom),
+            2,
+            "capa counts calls from only for direct (PC-relative/memory) call operands"
+        );
+    }
+
+    #[test]
+    fn test_virtual_function_recursion_only_in_merged_cfg() {
+        use crate::lifter::{LiftedBasicBlock, LiftedFunction};
+        let extractor = BinaryExtractor::new();
+        let mk_call = |addr: u64, target: u64| {
+            let mut i = mk_insn(addr, "call", &[], 5);
+            i.operations = vec![ILOperation::Branch { target: Some(target), is_call: true }];
+            i
+        };
+        let mut jmp = mk_insn(0x1000, "jmp", &[], 5);
+        jmp.operations = vec![ILOperation::Branch { target: Some(0x2000), is_call: false }];
+        let mk_f = |addr: u64, insns: Vec<crate::lifter::LiftedInstruction>, callees: Vec<u64>| LiftedFunction {
+            address: addr,
+            name: None,
+            basic_blocks: vec![LiftedBasicBlock {
+                index: 0,
+                address: addr,
+                end_address: addr,
+                instructions: insns,
+                successors: vec![],
+                predecessors: vec![],
+                is_loop_header: false,
+            }],
+            callees,
+            callers: vec![],
+            is_thunk: false,
+            thunk_target: None,
+            is_library: false,
+            indirect_callees: Vec::new(),
+        };
+        let mut functions = HashMap::new();
+        functions.insert(0x1000, mk_f(0x1000, vec![jmp], vec![]));
+        functions.insert(0x2000, mk_f(0x2000, vec![mk_call(0x2000, 0x1000), mk_insn(0x2005, "retn", &[], 1)], vec![0x1000]));
+        let extracted = extractor.extract_from_lifted(&mk_program(functions), &[]);
+
+        // per-function evaluation is unchanged: stub 0x1000 is not recursive on its own
+        assert!(!extracted.functions[&Address(0x1000)]
+            .all_features()
+            .characteristics
+            .contains(&CharacteristicType::RecursiveCall));
+        // the virtual function (stub + target) is recursive and reports at the stub address
+        assert_eq!(extracted.virtual_functions.len(), 1);
+        let v = &extracted.virtual_functions[0];
+        assert_eq!(v.address, Address(0x1000));
+        assert!(v.features.characteristics.contains(&CharacteristicType::RecursiveCall));
+        assert_eq!(v.features.basic_block_count, 2);
+        // file-level features/counts are unaffected by virtual functions
+        assert_eq!(extracted.functions.len(), 2);
+    }
+
+    #[test]
+    fn test_cookie_bb0_is_lowest_address_block_not_entry_block() {
+        use crate::lifter::LiftedFunction;
+        let extractor = BinaryExtractor::new();
+        // Function entry 0x2000. A block below the entry (0x1ff0) is capa's bb0 (viv-utils sorts
+        // basic blocks by VA), so the first-0x40-bytes cookie exemption applies there and NOT to
+        // the entry block.
+        let low = {
+            let mut b = mk_bb(vec![mk_insn(0x1ff0, "mov", &["eax", "1"], 2), mk_insn(0x1ff2, "xor", &["edi", "ebp"], 2)]);
+            b.index = 0;
+            b
+        };
+        let entry = {
+            let mut b = mk_bb(vec![mk_insn(0x2000, "mov", &["eax", "1"], 2), mk_insn(0x2002, "xor", &["edi", "ebp"], 2)]);
+            b.index = 1;
+            b
+        };
+        let mut functions = HashMap::new();
+        functions.insert(
+            0x2000,
+            LiftedFunction {
+                address: 0x2000,
+                name: None,
+                basic_blocks: vec![low, entry],
+                callees: vec![],
+                callers: vec![],
+                is_thunk: false,
+                thunk_target: None,
+                is_library: false,
+                indirect_callees: Vec::new(),
+            },
+        );
+        let extracted = extractor.extract_from_lifted(&mk_program(functions), &[]);
+        let f = &extracted.functions[&Address(0x2000)];
+        assert_eq!(f.all_features().characteristic_count(&CharacteristicType::Nzxor), 1);
+        assert_eq!(f.basic_blocks[&0].characteristic_count(&CharacteristicType::Nzxor), 0, "lowest block = bb0: exempt");
+        assert_eq!(f.basic_blocks[&1].characteristic_count(&CharacteristicType::Nzxor), 1, "entry block above bb0: counted");
+    }
+
+    #[test]
+    fn test_cookie_return_window_covers_iret() {
+        let e = BinaryExtractor::new();
+        let tail = mk_bb(vec![mk_insn(0x2000, "xor", &["edi", "ebp"], 2), mk_insn(0x2002, "iretq", &[], 2)]);
+        assert!(!e.is_nzxor_in(&tail.instructions[0], &tail, false));
     }
 
     #[test]
@@ -1786,6 +2114,17 @@ mod tests {
             }],
         };
 
+        // capa treats an xor within 0x40 bytes of the entry block start as a security cookie
+        // when operand 2 is not a non-stack register, so these fixtures start after a pad.
+        let pad = |addr: u64| crate::lifter::LiftedInstruction {
+            address: addr,
+            mnemonic: "nop".to_string(),
+            operands: vec![],
+            operand_values: vec![],
+            bytes: vec![0x90; 0x40],
+            operations: vec![],
+        };
+
         let info = crate::loader::BinaryInfo {
             os: OsType::Windows,
             arch: ArchType::Amd64,
@@ -1818,6 +2157,7 @@ mod tests {
             is_thunk: false,
             thunk_target: None,
             is_library: false,
+            indirect_callees: Vec::new(),
         };
 
         // Function 1 (0x2000): 1 nzxor (`xor al, 0x36`) + 1 zeroing `xor eax, eax`
@@ -1829,8 +2169,9 @@ mod tests {
                 address: 0x2000,
                 end_address: 0x2004,
                 instructions: vec![
-                    make_xor(0x2000, "eax", "eax", None),
-                    make_xor(0x2002, "al", "0x36", Some(0x36)),
+                    pad(0x2000),
+                    make_xor(0x2040, "eax", "eax", None),
+                    make_xor(0x2042, "al", "0x36", Some(0x36)),
                 ],
                 successors: vec![],
                 predecessors: vec![],
@@ -1841,6 +2182,7 @@ mod tests {
             is_thunk: false,
             thunk_target: None,
             is_library: false,
+            indirect_callees: Vec::new(),
         };
 
         // Function 2 (0x3000): 2 nzxor (`xor al, 0x36` and `xor al, 0x5c`, HMAC ipad/opad)
@@ -1852,8 +2194,9 @@ mod tests {
                 address: 0x3000,
                 end_address: 0x3004,
                 instructions: vec![
-                    make_xor(0x3000, "al", "0x36", Some(0x36)),
-                    make_xor(0x3002, "al", "0x5c", Some(0x5c)),
+                    pad(0x3000),
+                    make_xor(0x3040, "al", "0x36", Some(0x36)),
+                    make_xor(0x3042, "al", "0x5c", Some(0x5c)),
                 ],
                 successors: vec![],
                 predecessors: vec![],
@@ -1864,6 +2207,7 @@ mod tests {
             is_thunk: false,
             thunk_target: None,
             is_library: false,
+            indirect_callees: Vec::new(),
         };
 
         let mut functions = HashMap::new();
@@ -1978,6 +2322,7 @@ rule:
             is_thunk: false,
             thunk_target: None,
             is_library: false,
+            indirect_callees: Vec::new(),
         };
 
         // Function at 0x4000 calls 5 distinct targets (exceeding RC4 PRGA `(0, 4)`)
@@ -1998,6 +2343,7 @@ rule:
             is_thunk: false,
             thunk_target: None,
             is_library: false,
+            indirect_callees: Vec::new(),
         };
 
         let mut functions = HashMap::new();
@@ -2216,6 +2562,7 @@ rule:
                 is_thunk: false,
                 thunk_target: None,
                 is_library: false,
+                indirect_callees: Vec::new(),
             },
         );
         functions.insert(
@@ -2229,6 +2576,7 @@ rule:
                 is_thunk: false,
                 thunk_target: None,
                 is_library: false,
+                indirect_callees: Vec::new(),
             },
         );
 
@@ -2470,6 +2818,7 @@ rule:
                 is_thunk: false,
                 thunk_target: None,
                 is_library: false,
+                indirect_callees: Vec::new(),
             },
         );
         let mut iat_entries = HashMap::new();

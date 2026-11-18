@@ -63,10 +63,15 @@ pub struct LiftedFunction {
     pub thunk_target: Option<String>,
     /// Whether this function was identified as a library function (e.g., via FLIRT)
     pub is_library: bool,
+    /// Call targets reached ONLY through register/displacement-indirect `call`s (e.g.
+    /// `call r15` resolved by IDA to an import). They stay in `callees` (caller graph) but
+    /// capa does not emit `characteristic: calls from` for them (`viv/insn.py`
+    /// `extract_function_calls_from` handles only memory/PC-relative operands).
+    pub indirect_callees: Vec<u64>,
 }
 
 /// Lifted basic block
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LiftedBasicBlock {
     /// Block index within function
     pub index: usize,
@@ -85,7 +90,7 @@ pub struct LiftedBasicBlock {
 }
 
 /// Lifted instruction with IL operations
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct LiftedInstruction {
     /// Instruction address
     pub address: u64,
@@ -431,6 +436,7 @@ fn lift_shellcode(bytes: &[u8], info: &BinaryInfo) -> Result<LiftedProgram, Load
                     is_thunk: false,
                     thunk_target: None,
                     is_library: false,
+                    indirect_callees: Vec::new(),
                 });
             }
         }
@@ -927,6 +933,7 @@ fn lift_with_iced(bytes: &[u8], info: &BinaryInfo) -> Result<LiftedProgram, Load
                     is_thunk: false,
                     thunk_target: None,
                     is_library: false,
+                    indirect_callees: Vec::new(),
                 });
             }
         }
@@ -1321,6 +1328,7 @@ fn lift_with_capstone(bytes: &[u8], info: &BinaryInfo) -> Result<LiftedProgram, 
                             is_thunk: false,
                             thunk_target: None,
                             is_library: false,
+                            indirect_callees: Vec::new(),
                         },
                     );
                 }

@@ -278,13 +278,25 @@ pub(crate) fn lift_from_idb(idb: &IDB, info: BinaryInfo, image_bytes: &[u8]) -> 
         }
 
         // Build CFG and lift basic blocks
-        let (basic_blocks, callees) = match func.cfg() {
+        let (basic_blocks, callees, indirect_calls) = match func.cfg() {
             Ok(cfg) => lift_cfg(idb, &cfg, func_addr, addr_dtype),
             Err(_) => {
                 // Fallback: create a single basic block for the function
-                let (bb, callees) = lift_linear(idb, func_addr, func.end_address(), addr_dtype);
-                (vec![bb], callees)
+                let (bb, callees, ind) = lift_linear(idb, func_addr, func.end_address(), addr_dtype);
+                (vec![bb], callees, ind)
             }
+        };
+        // Targets reached only via register/displacement-indirect calls (not via any direct call).
+        let indirect_callees: Vec<u64> = {
+            let direct: std::collections::HashSet<u64> = callees
+                .iter()
+                .copied()
+                .filter(|c| !indirect_calls.contains(c))
+                .collect();
+            let mut v: Vec<u64> = indirect_calls.iter().copied().filter(|c| !direct.contains(c)).collect();
+            v.sort_unstable();
+            v.dedup();
+            v
         };
 
         // Detect thunk target (standard JMP thunks + MSVC `/DELAYLOAD` 2-insn `__tailMerge` stubs
@@ -329,6 +341,7 @@ pub(crate) fn lift_from_idb(idb: &IDB, info: BinaryInfo, image_bytes: &[u8]) -> 
                 is_thunk,
                 thunk_target,
                 is_library,
+                indirect_callees,
             },
         );
     }
@@ -666,6 +679,22 @@ fn build_import_xref_map(
                             }
                         }
                     }
+                    // `jmp` whose target instruction is itself `call [IAT]` (FF 15): only for
+                    // the first hop from a `jmp`, never for arbitrary chained targets.
+                    if hop == 1 && insn.mnemonic == "jmp" {
+                        let slot = va_map
+                            .slice_at_va(image_bytes, ref_ea, 7)
+                            .and_then(|sl| crate::helpers::decode_raw_iat_call_slot(sl, ref_ea, is_64))
+                            .or_else(|| {
+                                let b = read_bytes_at_seg_bounded(idb, ref_ea, 7);
+                                crate::helpers::decode_raw_iat_call_slot(&b, ref_ea, is_64)
+                            });
+                        if let Some(slot) = slot {
+                            if !candidates.contains(&slot) {
+                                candidates.push(slot);
+                            }
+                        }
+                    }
                     if candidates.is_empty() {
                         break;
                     }
@@ -707,7 +736,11 @@ fn build_import_xref_map(
                                 || {
                                     let stub_bytes = read_bytes_at_seg_bounded(idb, cand_ea, 7);
                                     decode_raw_jmp_stub_target(&stub_bytes, cand_ea, is_64).is_some()
-                                })
+                                }
+                                || (hop == 0 && insn.mnemonic == "jmp" && {
+                                    let b = read_bytes_at_seg_bounded(idb, cand_ea, 7);
+                                    crate::helpers::decode_raw_iat_call_slot(&b, cand_ea, is_64).is_some()
+                                }))
                     });
                     let Some(next_ea) = chain_target else {
                         break;
@@ -780,16 +813,18 @@ fn lift_cfg(
     cfg: &idalib::func::FunctionCFG<'_>,
     _func_addr: u64,
     addr_dtype: OperandDataType,
-) -> (Vec<LiftedBasicBlock>, Vec<u64>) {
+) -> (Vec<LiftedBasicBlock>, Vec<u64>, Vec<u64>) {
     let mut blocks = Vec::new();
     let mut all_callees = Vec::new();
+    let mut all_indirect = Vec::new();
 
     for (block_idx, block) in cfg.blocks().enumerate() {
         let start = block.start_address();
         let end = block.end_address();
 
-        let (instructions, callees) = lift_instructions(idb, start, end, addr_dtype);
+        let (instructions, callees, indirect) = lift_instructions(idb, start, end, addr_dtype);
         all_callees.extend(callees);
+        all_indirect.extend(indirect);
 
         let successors: Vec<usize> = block.succs().collect();
         let predecessors: Vec<usize> = block.preds().collect();
@@ -811,12 +846,12 @@ fn lift_cfg(
         });
     }
 
-    (blocks, all_callees)
+    (blocks, all_callees, all_indirect)
 }
 
 /// Fallback: lift a linear range of instructions as a single basic block.
-fn lift_linear(idb: &IDB, start: u64, end: u64, addr_dtype: OperandDataType) -> (LiftedBasicBlock, Vec<u64>) {
-    let (instructions, callees) = lift_instructions(idb, start, end, addr_dtype);
+fn lift_linear(idb: &IDB, start: u64, end: u64, addr_dtype: OperandDataType) -> (LiftedBasicBlock, Vec<u64>, Vec<u64>) {
+    let (instructions, callees, indirect) = lift_instructions(idb, start, end, addr_dtype);
 
     let bb = LiftedBasicBlock {
         index: 0,
@@ -828,13 +863,14 @@ fn lift_linear(idb: &IDB, start: u64, end: u64, addr_dtype: OperandDataType) -> 
         is_loop_header: false,
     };
 
-    (bb, callees)
+    (bb, callees, indirect)
 }
 
 /// Lift instructions in an address range [start, end).
-fn lift_instructions(idb: &IDB, start: u64, end: u64, addr_dtype: OperandDataType) -> (Vec<LiftedInstruction>, Vec<u64>) {
+fn lift_instructions(idb: &IDB, start: u64, end: u64, addr_dtype: OperandDataType) -> (Vec<LiftedInstruction>, Vec<u64>, Vec<u64>) {
     let mut instructions = Vec::new();
     let mut callees = Vec::new();
+    let mut indirect_callees = Vec::new();
     let mut ea = start;
 
     while ea < end {
@@ -903,8 +939,17 @@ fn lift_instructions(idb: &IDB, start: u64, end: u64, addr_dtype: OperandDataTyp
                 target,
                 is_call: true,
             });
+            // Direct operand kinds (capa `extract_function_calls_from`: PC-relative and
+            // memory operands). Register/displacement/phrase calls are "indirect".
+            let is_direct_call = insn.operand(0).is_some_and(|op| {
+                use idalib::insn::OperandType;
+                matches!(op.type_(), OperandType::Near | OperandType::Far | OperandType::Mem)
+            });
             let crefs = code_refs_from(idb, ea);
             if !crefs.is_empty() {
+                if !is_direct_call {
+                    indirect_callees.extend(crefs.iter().copied());
+                }
                 callees.extend(crefs);
             } else if let Some(t) = target {
                 callees.push(t);
@@ -924,7 +969,7 @@ fn lift_instructions(idb: &IDB, start: u64, end: u64, addr_dtype: OperandDataTyp
         }
 
         // XOR detection for nzxor
-        if mnemonic == "xor" || mnemonic == "eor" || mnemonic == "pxor" {
+        if matches!(mnemonic.as_str(), "xor" | "xorpd" | "xorps" | "pxor" | "eor") {
             operations.push(ILOperation::Xor {
                 operands: operands.clone(),
                 constants: Vec::new(),
@@ -946,7 +991,7 @@ fn lift_instructions(idb: &IDB, start: u64, end: u64, addr_dtype: OperandDataTyp
         ea += insn_len as u64;
     }
 
-    (instructions, callees)
+    (instructions, callees, indirect_callees)
 }
 
 /// Build IAT entry map from imports.

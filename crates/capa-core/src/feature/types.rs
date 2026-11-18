@@ -280,6 +280,13 @@ pub struct ExtractedFeatures {
     pub file: FeatureSet,
     /// Function features by address
     pub functions: HashMap<Address, FunctionFeatures>,
+    /// Additive "virtual functions" (e.g. a jmp stub merged with the function it tail-jumps
+    /// into), evaluated by the matcher in
+    /// a separate pass for function-scope rules only. `address` is the head the match is
+    /// reported at. Kept apart from `functions` so file-level counts and the existing
+    /// per-function evaluation are unchanged.
+    #[serde(default)]
+    pub virtual_functions: Vec<FunctionFeatures>,
     /// Detected operating system
     pub os: OsType,
     /// Detected architecture
@@ -293,6 +300,7 @@ impl ExtractedFeatures {
         Self {
             file: FeatureSet::new(),
             functions: HashMap::new(),
+            virtual_functions: Vec::new(),
             os,
             arch,
             format,
