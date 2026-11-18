@@ -18,3 +18,7 @@ REUSE-DECISION: idalib 9.5 bindings | reused | source=floss-rs:third_party/idali
    - `idalib::imports::enum_all_imports()` (`nalt_extras.h`, `idalib/src/imports.rs`) for module-qualified import extraction in `capa-backend/src/ida_loader.rs`.
    - `Insn::segpref()`, `Insn::disasm_line()`, `Insn::print_operand()`, and `IDB::{mnemonic_at, disasm_line_at, print_operand_at}` (`ua_extras.h`, `idalib/src/insn.rs`, `idalib/src/idb.rs`).
 4. **Headless container open fix** (`Yeti-Sec/idalib@0c3cc8e`): skip redundant `is_license_valid()` inside `open_database_with` / `open_database_quiet` since `init_library()` already validates the license.
+5. **FLIRT signature application** (capa-rs local, wraps `funcs.hpp` `plan_to_apply_idasgn`, `apply_idasgn_to`, `get_idasgn_qty`, `calc_idasgn_state`, `get_idasgn_desc`):
+   - `idalib-sys/src/flirt_extras.h` (new C++ helpers), declarations and `idalib_sys::ida::{plan_to_apply_idasgn, apply_idasgn_to, get_idasgn_qty, calc_idasgn_state, get_idasgn_matches}` in `idalib-sys/src/lib.rs`.
+   - `IDB::{plan_to_apply_idasgn, idasgn_qty, idasgn_state, idasgn_matches}` in `idalib/src/idb.rs`.
+   - Used by `capa-backend/src/ida_flirt.rs`; opt-in only (`--signatures` / `CAPA_SIGS_DIR`). IDA takes a short file name resolved in `$IDADIR/sig/pc` / `$IDAUSR/sig/pc`.

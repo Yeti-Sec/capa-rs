@@ -800,6 +800,7 @@ mod ffix {
         include!("bytes_extras.h");
         include!("comments_extras.h");
         include!("entry_extras.h");
+        include!("flirt_extras.h");
         include!("func_extras.h");
         include!("hexrays_extras.h");
         include!("idalib_extras.h");
@@ -856,6 +857,11 @@ mod ffix {
             auto_analysis: bool,
         ) -> c_int;
         unsafe fn idalib_check_license() -> bool;
+        unsafe fn idalib_plan_to_apply_idasgn(fname: *const c_char) -> c_int;
+        unsafe fn idalib_apply_idasgn_to(signame: *const c_char, ea: c_ulonglong, is_startup: bool) -> c_int;
+        unsafe fn idalib_get_idasgn_qty() -> c_int;
+        unsafe fn idalib_calc_idasgn_state(n: c_int) -> c_int;
+        unsafe fn idalib_get_idasgn_matches(n: c_int) -> c_int;
         unsafe fn idalib_get_license_id(id: &mut [u8; 6]) -> bool;
         unsafe fn idalib_is_decompiler_available() -> bool;
 
@@ -1363,6 +1369,33 @@ pub mod ida {
 
     pub use ffi::auto_wait;
     pub use ffix::{idalib_msg, idalib_process_config_directive};
+
+    /// Plan a FLIRT signature file (short name, no directory) for application.
+    /// Returns 0 on failure, otherwise the number of planned signatures.
+    pub fn plan_to_apply_idasgn(fname: &str) -> Result<i32, IDAError> {
+        let fname = CString::new(fname).map_err(IDAError::ffi)?;
+        Ok(unsafe { ffix::idalib_plan_to_apply_idasgn(fname.as_ptr()) }.0)
+    }
+
+    /// Apply a signature at `ea`; returns a `LIBFUNC_*` code.
+    pub fn apply_idasgn_to(signame: &str, ea: u64, is_startup: bool) -> Result<i32, IDAError> {
+        let signame = CString::new(signame).map_err(IDAError::ffi)?;
+        Ok(unsafe { ffix::idalib_apply_idasgn_to(signame.as_ptr(), ea.into(), is_startup) }.0)
+    }
+
+    pub fn get_idasgn_qty() -> i32 {
+        unsafe { ffix::idalib_get_idasgn_qty() }.0
+    }
+
+    /// `IDASGN_*` code (2 == applied).
+    pub fn calc_idasgn_state(n: i32) -> i32 {
+        unsafe { ffix::idalib_calc_idasgn_state(c_int(n)) }.0
+    }
+
+    /// Modules recognised by the n-th signature, -1 on bad index.
+    pub fn get_idasgn_matches(n: i32) -> i32 {
+        unsafe { ffix::idalib_get_idasgn_matches(c_int(n)) }.0
+    }
 
     pub fn force_batch_mode() {
         unsafe { ffix::idalib_force_batch_mode() }

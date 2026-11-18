@@ -268,6 +268,14 @@ pub(crate) fn lift_from_idb(idb: &IDB, info: BinaryInfo, image_bytes: &[u8]) -> 
                     || n.contains("@_com_error@@"))
         });
         let is_library = flags.contains(FunctionFlags::LIB) || is_msvc_lib_sym;
+        if is_library {
+            log::debug!(
+                "library function 0x{func_addr:x} {} (FUNC_LIB={}, msvc_sym_heuristic={})",
+                func_name.as_deref().unwrap_or("?"),
+                flags.contains(FunctionFlags::LIB),
+                is_msvc_lib_sym
+            );
+        }
 
         // Build CFG and lift basic blocks
         let (basic_blocks, callees) = match func.cfg() {

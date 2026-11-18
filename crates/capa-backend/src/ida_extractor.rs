@@ -25,6 +25,8 @@ use capa_core::feature::{ExtractedFeatures, FeatureExtractor};
 pub struct IdaExtractor {
     extractor: BinaryExtractor,
     save_idb: bool,
+    /// Explicit FLIRT signature path (file or directory); `None` = auto-resolve.
+    signatures: Option<std::path::PathBuf>,
 }
 
 impl IdaExtractor {
@@ -32,11 +34,20 @@ impl IdaExtractor {
         Self {
             extractor: BinaryExtractor::new(),
             save_idb: false,
+            signatures: None,
         }
     }
 
     pub fn with_save_idb(mut self, save: bool) -> Self {
         self.save_idb = save;
+        self
+    }
+
+    /// Opt in to FLIRT library identification with a signature file/directory
+    /// (like capa `--signatures`). `None` falls back to `CAPA_SIGS_DIR`; if that
+    /// is unset too, no signatures are applied (default).
+    pub fn with_signatures(mut self, path: Option<std::path::PathBuf>) -> Self {
+        self.signatures = path;
         self
     }
 
@@ -68,8 +79,17 @@ impl IdaExtractor {
             std::env::set_var("_NT_SYMBOL_PATH", "");
         }
 
-        let idb = IDB::open_with_args(path, true, self.save_idb, &["-Opdb:off"])
+        let mut idb = IDB::open_with_args(path, true, self.save_idb, &["-Opdb:off"])
             .map_err(|e| format!("Failed to open IDB for {}: {}", path.display(), e))?;
+
+        // Opt-in FLIRT (`--signatures` / CAPA_SIGS_DIR). capa applies its signatures to
+        // PE inputs only (capa.main.get_signatures_from_cli: non-PE -> skip).
+        if let Some(dir) = crate::ida_flirt::resolve_sigs_dir(self.signatures.as_deref()) {
+            if matches!(goblin::Object::parse(&bytes), Ok(goblin::Object::PE(_))) {
+                let n = crate::ida_flirt::apply_flirt_signatures(&mut idb, &dir);
+                debug!("FLIRT: {n} signature file(s) applied from {}", dir.display());
+            }
+        }
 
         let mut info = load_from_idb(&idb);
 

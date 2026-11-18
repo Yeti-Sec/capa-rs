@@ -26,6 +26,12 @@ RUN cargo build --release --bin capa-rs --features ida-backend,dotnet \
 FROM ${BASE_IMAGE}
 COPY --from=build /src/target/release/capa-rs /usr/local/bin/capa-rs
 COPY --from=build /src/capa-rules /opt/capa-rules
+# capa's FLIRT signatures (Apache-2.0, FLAIR .sig), shipped but NOT applied by default:
+# FLIRT is opt-in via `capa-rs --signatures /opt/capa-rs/sigs` or CAPA_SIGS_DIR (the
+# adapter sets neither). IDA's plan_to_apply_idasgn only accepts a short file name, so
+# the files are also placed in IDA's sig/pc directory.
+COPY --from=build /src/sigs /opt/capa-rs/sigs
+RUN mkdir -p /opt/ida/sig/pc && cp /opt/capa-rs/sigs/*.sig /opt/ida/sig/pc/
 COPY --from=build /src/enhanced-dotnet-rules /opt/enhanced-dotnet-rules
 ENV CAPA_RULES=/opt/capa-rules \
     IDADIR=/opt/ida \

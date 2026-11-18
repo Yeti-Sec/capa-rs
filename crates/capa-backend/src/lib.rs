@@ -26,6 +26,8 @@ mod ida_lifter;
 #[cfg(feature = "ida-backend")]
 mod ida_extractor;
 
+#[cfg(feature = "ida-backend")]
+pub mod ida_flirt;
 pub use extractor::{BytePatternMatcher, BinaryExtractor, GoblinExtractor};
 pub use hashing::{SampleHashes, get_sample_hashes, get_file_hashes};
 pub use lifter::{lift_binary, ILOperation, LiftedBasicBlock, LiftedFunction, LiftedInstruction, LiftedProgram};

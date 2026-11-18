@@ -196,6 +196,28 @@ impl IDB {
         unsafe { auto_wait() }
     }
 
+    /// Plan a FLIRT signature (short file name resolved by IDA against its
+    /// `sig/<proc>` directories). Returns the number of planned signatures
+    /// (0 on failure). Call `auto_wait()` afterwards to let IDA apply it.
+    pub fn plan_to_apply_idasgn(&mut self, short_name: &str) -> Result<i32, IDAError> {
+        crate::ffi::ida::plan_to_apply_idasgn(short_name)
+    }
+
+    /// Number of planned + applied FLIRT signatures.
+    pub fn idasgn_qty(&self) -> i32 {
+        crate::ffi::ida::get_idasgn_qty()
+    }
+
+    /// `IDASGN_*` state of the n-th signature (2 == applied).
+    pub fn idasgn_state(&self, n: i32) -> i32 {
+        crate::ffi::ida::calc_idasgn_state(n)
+    }
+
+    /// Modules recognised by the n-th signature (-1 on bad index).
+    pub fn idasgn_matches(&self, n: i32) -> i32 {
+        crate::ffi::ida::get_idasgn_matches(n)
+    }
+
     pub fn set_screen_address(&mut self, ea: Address) {
         set_screen_ea(ea.into());
     }

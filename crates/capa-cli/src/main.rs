@@ -169,6 +169,12 @@ struct Cli {
     #[arg(long)]
     save_idb: bool,
 
+    /// Opt in to FLIRT library-function identification with capa's .sig files (file or
+    /// directory, like capa --signatures). Only used with --backend ida on PE inputs.
+    /// Also enabled by $CAPA_SIGS_DIR. Off by default.
+    #[arg(long, value_name = "PATH")]
+    signatures: Option<PathBuf>,
+
     /// Output as protobuf wire format. Optionally provide a .proto schema file;
     /// without one, uses the built-in schema.
     #[arg(long, value_name = "SCHEMA")]
@@ -288,7 +294,8 @@ fn main() -> Result<()> {
             {
                 eprintln!("Extracting features via IDA backend for {}...", cli.binary.display());
                 let ida = capa_backend::IdaExtractor::new()
-                    .with_save_idb(cli.save_idb);
+                    .with_save_idb(cli.save_idb)
+                    .with_signatures(cli.signatures.clone());
                 let result = ida
                     .extract_file(&cli.binary)
                     .map_err(|e| anyhow::anyhow!("Failed to extract features via IDA: {e}"))?;
