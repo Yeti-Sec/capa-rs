@@ -421,7 +421,7 @@ impl MatchEngine {
     fn count_feature(&self, node: &FeatureNode, scope_features: &FeatureSet) -> usize {
         match node {
             FeatureNode::Feature(Feature::Api(matcher)) => {
-                count_string_matches(matcher, &scope_features.apis)
+                count_api_matches(matcher, &scope_features.apis)
             }
             FeatureNode::Feature(Feature::String(matcher)) => {
                 count_string_matches(matcher, &scope_features.strings)
@@ -676,7 +676,7 @@ impl MatchEngine {
         all_features: &ExtractedFeatures,
     ) -> bool {
         match feature {
-            Feature::Api(matcher) => match_string(matcher, &scope_features.apis),
+            Feature::Api(matcher) => match_api(matcher, &scope_features.apis),
             Feature::Import(matcher) => match_string(matcher, &scope_features.imports),
             Feature::Export(matcher) => match_string(matcher, &scope_features.exports),
             Feature::FunctionName(matcher) => match_string(matcher, &scope_features.function_names),
@@ -747,6 +747,49 @@ impl MatchEngine {
                 scope_features.basic_block_count > 0
             }
         }
+    }
+}
+
+/// Mirror Python capa's `trim_dll_part`: for Win32 `dll.FuncName` specs (single `.`,
+/// not ordinal `.#` and not .NET `Namespace.Class::Method`), ignore the human-oriented
+/// DLL prefix so API-set / thunked calls (e.g. `api-ms-win-crt-*.getenv` -> `msvcrt.getenv`) match.
+fn trim_dll_part(api: &str) -> &str {
+    if api.contains(".#") || api.contains("::") {
+        return api;
+    }
+    let mut parts = api.split('.');
+    let _first = parts.next();
+    match (parts.next(), parts.next()) {
+        (Some(func), None) if !func.is_empty() => func,
+        _ => api,
+    }
+}
+
+fn match_api(matcher: &StringMatcher, apis: &HashSet<String>) -> bool {
+    match matcher {
+        StringMatcher::Exact(pattern) => {
+            let bare = trim_dll_part(pattern);
+            apis.iter().any(|s| {
+                s.eq_ignore_ascii_case(pattern) || (bare != pattern && s.eq_ignore_ascii_case(bare))
+            })
+        }
+        StringMatcher::Regex(compiled) => apis.iter().any(|s| compiled.is_match(s)),
+    }
+}
+
+fn count_api_matches(matcher: &StringMatcher, apis: &HashSet<String>) -> usize {
+    match matcher {
+        StringMatcher::Exact(pattern) => {
+            let bare = trim_dll_part(pattern);
+            if apis.iter().any(|s| s.eq_ignore_ascii_case(pattern)) {
+                apis.iter().filter(|s| s.eq_ignore_ascii_case(pattern)).count()
+            } else if bare != pattern {
+                apis.iter().filter(|s| s.eq_ignore_ascii_case(bare)).count()
+            } else {
+                0
+            }
+        }
+        StringMatcher::Regex(compiled) => apis.iter().filter(|s| compiled.is_match(s)).count(),
     }
 }
 

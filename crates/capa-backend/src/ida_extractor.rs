@@ -60,32 +60,49 @@ impl IdaExtractor {
                 .map_err(|e| e.to_string().into());
         }
 
-        // Native binary: use IDA
+        // Native binary: use IDA (disable PDB symbol server network lookups via `-Opdb:off`
+        // and empty `_NT_SYMBOL_PATH` so PEs with CodeView `RSDS` debug entries do not stall
+        // ~135s on `tcp_syn_retries` inside sandboxed containers).
         idalib::force_batch_mode();
+        if std::env::var_os("_NT_SYMBOL_PATH").is_none() {
+            std::env::set_var("_NT_SYMBOL_PATH", "");
+        }
 
-        let idb = IDB::open_with(path, true, self.save_idb)
+        let idb = IDB::open_with_args(path, true, self.save_idb, &["-Opdb:off"])
             .map_err(|e| format!("Failed to open IDB for {}: {}", path.display(), e))?;
 
         let mut info = load_from_idb(&idb);
 
-        // Augment `info.imports` with PE Delay-Import Directory (`DataDirectory[13]`)
-        // entries parsed directly from the PE image (both delay-IAT slot VAs and
-        // initial `__imp_load_*` helper stub VAs), matching Vivisect's delay-import coverage.
-        let delay_imports = crate::loader::extract_pe_delay_imports_from_bytes(&bytes);
-        if !delay_imports.is_empty() {
+        // Augment `info.imports` with exact on-disk PE `.rdata`/`.idata` IAT slot VAs
+        // (`image_base + imp.offset` from goblin `pe.imports`, since IDA relocates imports
+        // into a synthetic `extern` segment) PLUS PE Delay-Import Directory (`DataDirectory[13]`)
+        // entries. This guarantees `E8 -> FF 25 [IAT_VA]` thunks always match `imports_by_addr`.
+        if let Ok(goblin::Object::PE(pe)) = goblin::Object::parse(&bytes) {
             let mut existing: std::collections::HashSet<(String, u64)> = info
                 .imports
                 .iter()
                 .map(|i| (i.name.clone(), i.address))
                 .collect();
-            for di in delay_imports {
+            let image_base = pe.image_base as u64;
+            for imp in &pe.imports {
+                let iat_va = image_base.wrapping_add(imp.offset as u64);
+                let name = imp.name.to_string();
+                if existing.insert((name.clone(), iat_va)) {
+                    info.imports.push(crate::loader::ImportInfo {
+                        name,
+                        module: Some(imp.dll.to_lowercase()),
+                        address: iat_va,
+                    });
+                }
+            }
+            for di in crate::loader::extract_pe_delay_imports(&pe, &bytes) {
                 if existing.insert((di.name.clone(), di.address)) {
                     info.imports.push(di);
                 }
             }
         }
 
-        let program = lift_from_idb(&idb, info);
+        let program = lift_from_idb(&idb, info, &bytes);
         let mut features = self.extractor.extract_from_lifted(&program, &bytes);
 
         // Augment file-scope strings with raw whole-image ASCII/UTF-16 strings AFTER

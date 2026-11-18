@@ -132,6 +132,10 @@ impl Insn {
         self.inner.itype as _
     }
 
+    pub fn insnpref(&self) -> u8 {
+        self.inner.insnpref as u8
+    }
+
     pub fn mnemonic(&self) -> Option<String> {
         let s = unsafe { idalib_print_insn_mnem(self.address().into()) };
 
@@ -307,6 +311,14 @@ impl Operand {
         } else {
             None
         }
+    }
+
+    pub fn specflag1(&self) -> u8 {
+        self.inner.specflag1 as u8
+    }
+
+    pub fn specflag2(&self) -> u8 {
+        self.inner.specflag2 as u8
     }
 
     pub fn processor_specific_flag1(&self) -> Option<i8> {

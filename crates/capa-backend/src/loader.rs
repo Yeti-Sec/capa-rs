@@ -387,7 +387,7 @@ fn extract_strings(bytes: &[u8]) -> Vec<StringInfo> {
 /// Parse PE `IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT` (`DataDirectory[13]`) descriptors,
 /// returning `ImportInfo` entries at both the delay-load IAT slot VA and the initial
 /// on-disk `__imp_load_<name>` helper stub VA.
-#[cfg_attr(not(feature = "ida-backend"), allow(dead_code))]
+#[allow(dead_code)]
 pub(crate) fn extract_pe_delay_imports_from_bytes(bytes: &[u8]) -> Vec<ImportInfo> {
     if let Ok(Object::PE(pe)) = Object::parse(bytes) {
         extract_pe_delay_imports(&pe, bytes)

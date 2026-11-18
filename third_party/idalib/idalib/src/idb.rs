@@ -134,6 +134,16 @@ impl IDB {
     }
 
     #[cfg(not(feature = "plugin"))]
+    pub fn open_with_args(
+        path: impl AsRef<Path>,
+        auto_analyse: bool,
+        save: bool,
+        args: &[impl AsRef<str>],
+    ) -> Result<Self, IDAError> {
+        Self::open_full_with(path, auto_analyse, save, args)
+    }
+
+    #[cfg(not(feature = "plugin"))]
     fn open_full_with(
         path: impl AsRef<Path>,
         auto_analyse: bool,

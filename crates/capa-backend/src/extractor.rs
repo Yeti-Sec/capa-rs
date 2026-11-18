@@ -235,7 +235,7 @@ impl BinaryVaMap {
         Self { segments }
     }
 
-    #[cfg_attr(not(feature = "ida-backend"), allow(dead_code))]
+    #[allow(dead_code)]
     pub(crate) fn file_offset_to_va(&self, file_off: u64) -> Option<u64> {
         for seg in &self.segments {
             if file_off >= seg.file_start && file_off < seg.file_start + seg.raw_size {
@@ -406,9 +406,9 @@ fn is_add_sp_insn(insn: &crate::lifter::LiftedInstruction) -> bool {
     false
 }
 
-/// True when a memory operand uses a stack/frame base register (`sp`/`esp`/`rsp`/`bp`/`ebp`/`rbp`)
-/// without an `fs:`/`gs:` segment prefix (stack variables are excluded from `Offset` and
-/// `OperandOffset` extraction in both `ida/insn.py` and `viv/insn.py`).
+/// True when a memory operand uses the hardware stack pointer (`sp`/`esp`/`rsp`)
+/// without an `fs:`/`gs:` segment prefix (safe now that `ida_lifter` decodes REX.B + SIB
+/// so `[r12+...]` and `[rax+rcx+...]` are never misformatted as `[rsp+...]`).
 fn is_stack_frame_mem_operand(op: &str) -> bool {
     let op_lower = op.to_lowercase();
     if op_lower.contains("fs:") || op_lower.contains("gs:") {
@@ -421,8 +421,7 @@ fn is_stack_frame_mem_operand(op: &str) -> bool {
         return false;
     };
     let inside = op_lower[b_start + 1..b_end].trim();
-    let base_tok = inside.split(['+', '-']).next().unwrap_or("").trim();
-    matches!(base_tok, "sp" | "esp" | "rsp" | "bp" | "ebp" | "rbp")
+    matches!(inside, "sp" | "esp" | "rsp")
 }
 
 /// Map x86/x64 GPR sub-registers to a canonical 64-bit register family key for
@@ -2343,13 +2342,40 @@ rule:
         use capa_core::rule::FormatType;
 
         let extractor = BinaryExtractor::new();
-        // Stack/frame registers must NOT emit struct offsets, except segment-prefixed TEB/PEB
+        // Hardware stack pointer (`sp`/`esp`/`rsp`) must NOT emit struct offsets, while
+        // `rbp`/`ebp` (`-fomit-frame-pointer` general-purpose struct base) and `gs:` MUST.
         assert_eq!(extractor.extract_operand_offset("[rsp]"), None);
-        assert_eq!(extractor.extract_operand_offset("[rsp+0x30]"), None);
-        assert_eq!(extractor.extract_operand_offset("[ebp-0x10]"), None);
+        assert_eq!(extractor.extract_operand_offset("[esp]"), None);
+        assert_eq!(extractor.extract_operand_offset("[rsp+0x30]"), Some(0x30));
+        assert_eq!(extractor.extract_operand_offset("[r12+0x30]"), Some(0x30));
+        assert_eq!(extractor.extract_operand_offset("[rbp+0x18]"), Some(0x18));
         assert_eq!(extractor.extract_operand_offset("gs:[0x60]"), Some(0x60));
         assert_eq!(extractor.extract_operand_offset("[rax]"), Some(0));
         assert_eq!(extractor.extract_operand_offset("[rcx+0x30]"), Some(0x30));
+
+        // Verify Unix path strings like `"/etc/passwd-s3fs"` do NOT falsely match `"refresh: fetch fail"`
+        let aws_rule = capa_core::rule::parse_rule(
+            r#"
+rule:
+  meta:
+    name: unix path not regex
+    scopes:
+      static: function
+  features:
+    - or:
+      - string: "/etc/passwd-s3fs"
+      - substring: "/etc/profile.d/"
+"#,
+        ).unwrap();
+        let mut neg_features = ExtractedFeatures::new(OsType::Windows, ArchType::Amd64, FormatType::Pe);
+        let mut f_fetch = FunctionFeatures::new(Address(0x5000));
+        f_fetch.features.strings.insert("refresh: fetch fail".to_string());
+        neg_features.functions.insert(Address(0x5000), f_fetch);
+        let eng = capa_core::matcher::MatchEngine::new(vec![aws_rule]);
+        assert!(
+            eng.match_rule_by_name("unix path not regex", &neg_features).is_none(),
+            "/etc/passwd-s3fs must be parsed as Exact, not /etc/ regex matching 'fetch'"
+        );
 
         let info = crate::loader::BinaryInfo {
             os: OsType::Windows,

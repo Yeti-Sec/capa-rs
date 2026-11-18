@@ -233,7 +233,12 @@ fn parse_feature_by_key(key: &str, value: &Value) -> Result<FeatureNode> {
         }
         "string" => parse_string_feature(value).map(|m| FeatureNode::Feature(Feature::String(m))),
         "substring" => {
-            parse_string_feature(value).map(|m| FeatureNode::Feature(Feature::Substring(m)))
+            let s = value
+                .as_str()
+                .ok_or_else(|| CapaError::SyntaxError("Substring feature value must be string".to_string()))?;
+            Ok(FeatureNode::Feature(Feature::Substring(StringMatcher::Exact(
+                s.to_string(),
+            ))))
         }
         "section" => {
             parse_symbol_feature(value).map(|m| FeatureNode::Feature(Feature::Section(m)))
@@ -452,17 +457,22 @@ fn parse_string_feature(value: &Value) -> Result<StringMatcher> {
         }
 
         if let Some(end) = end_idx {
-            let pattern = &s[1..end];
             let flags = &s[end + 1..];
-            let case_insensitive = flags.contains('i');
+            // Only `/pattern/` and `/pattern/i` are CAPA regular expressions; Unix file
+            // paths such as `"/etc/passwd-s3fs"` or `"/proc/self/cmdline"` have path
+            // characters after the last `/` and must remain literal `Exact` strings.
+            if flags.is_empty() || flags == "i" {
+                let pattern = &s[1..end];
+                let case_insensitive = flags == "i";
 
-            let compiled = CompiledRegex::new(pattern, case_insensitive).map_err(|e| {
-                CapaError::RegexError {
-                    pattern: pattern.to_string(),
-                    source: e,
-                }
-            })?;
-            return Ok(StringMatcher::Regex(compiled));
+                let compiled = CompiledRegex::new(pattern, case_insensitive).map_err(|e| {
+                    CapaError::RegexError {
+                        pattern: pattern.to_string(),
+                        source: e,
+                    }
+                })?;
+                return Ok(StringMatcher::Regex(compiled));
+            }
         }
     }
 

@@ -158,14 +158,15 @@ pub(crate) fn clean_ida_import_symbol(raw: &str) -> Option<String> {
         return None;
     }
     s = s.trim_start_matches('.');
-    // Strip 32-bit stdcall/cdecl decoration (`_CreateFileA@28` -> `CreateFileA`)
+    // Strip 32-bit stdcall decoration (`_CreateFileA@28` -> `CreateFileA`),
+    // while preserving genuine leading underscores on CRT imports (`_exit` != `exit`).
     if let Some(at_pos) = s.rfind('@') {
         if at_pos > 0 && s[at_pos + 1..].chars().all(|c| c.is_ascii_digit()) {
             s = &s[..at_pos];
             s = s.strip_prefix('_').unwrap_or(s);
         }
     }
-    let cleaned = s.trim_start_matches('_');
+    let cleaned = s;
     if cleaned.is_empty() {
         None
     } else {
@@ -391,6 +392,7 @@ mod tests {
         assert_eq!(clean_ida_import_symbol("__imp_load_NetShareEnum"), Some("NetShareEnum".to_string()));
         assert_eq!(clean_ida_import_symbol("j___imp_CryptBinaryToStringW"), Some("CryptBinaryToStringW".to_string()));
         assert_eq!(clean_ida_import_symbol("_CreateFileA@28"), Some("CreateFileA".to_string()));
+        assert_eq!(clean_ida_import_symbol("j__exit"), Some("_exit".to_string()));
         assert_eq!(clean_ida_import_symbol("__tailMerge_netapi32_dll"), None);
         assert_eq!(clean_ida_import_symbol("sub_140001000"), None);
         assert_eq!(clean_ida_import_symbol("?mangled@@YAXZ"), None);

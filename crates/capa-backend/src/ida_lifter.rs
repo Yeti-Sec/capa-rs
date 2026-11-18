@@ -129,7 +129,54 @@ fn operand_numeric_value(
 /// - Displacement: "[rbp+0x10]" or "[rsp-0x8]"
 /// - Phrase: "[rax]"
 /// - Near/Far: "0x401000"
-fn format_operand(op: &Operand, segpref: Option<i32>, addr_dtype: OperandDataType) -> String {
+/// Format the base (+ optional SIB scaled index) registers inside `[...]` from IDA's `op_t`
+/// (`specflag1` = `hasSIB`, `specflag2` = `sib`, `insnpref` = `rex` per IDA SDK 9.5 `intel.hpp`).
+fn format_base_and_index(op: &Operand, rex: u8, addr_dtype: OperandDataType) -> String {
+    let is_64 = matches!(addr_dtype, OperandDataType::QWord);
+    if op.specflag1() != 0 {
+        let sib = op.specflag2();
+        let mut base = (sib & 7) as u16;
+        if is_64 && (rex & 1) != 0 {
+            base |= 8;
+        }
+        let mut index = ((sib >> 3) & 7) as u16;
+        if is_64 && (rex & 2) != 0 {
+            index |= 8;
+        }
+        let scale = 1u8 << ((sib >> 6) & 3);
+        let bname = x86_reg_name(base, addr_dtype);
+        let bstr = if bname.is_empty() {
+            format!("reg{}", base)
+        } else {
+            bname.to_string()
+        };
+        if index != 4 {
+            let iname = x86_reg_name(index, addr_dtype);
+            let istr = if iname.is_empty() {
+                format!("reg{}", index)
+            } else {
+                iname.to_string()
+            };
+            if scale > 1 {
+                format!("{}+{}*{}", bstr, istr, scale)
+            } else {
+                format!("{}+{}", bstr, istr)
+            }
+        } else {
+            bstr
+        }
+    } else {
+        let base = op.phrase().unwrap_or(0);
+        let bname = x86_reg_name(base, addr_dtype);
+        if bname.is_empty() {
+            format!("reg{}", base)
+        } else {
+            bname.to_string()
+        }
+    }
+}
+
+fn format_operand(op: &Operand, segpref: Option<i32>, rex: u8, addr_dtype: OperandDataType) -> String {
     let seg_prefix = match segpref {
         Some(SEGPREF_FS) => "fs:",
         Some(SEGPREF_GS) => "gs:",
@@ -154,14 +201,8 @@ fn format_operand(op: &Operand, segpref: Option<i32>, addr_dtype: OperandDataTyp
             format!("{}[0x{:x}]", seg_prefix, addr)
         }
         OperandType::Displ => {
-            let base = op.phrase().unwrap_or(0);
-            let base_name = x86_reg_name(base, addr_dtype);
+            let base_str = format_base_and_index(op, rex, addr_dtype);
             let disp = op.addr().unwrap_or(0);
-            let base_str = if base_name.is_empty() {
-                format!("reg{}", base)
-            } else {
-                base_name.to_string()
-            };
             if disp == 0 {
                 format!("{}[{}]", seg_prefix, base_str)
             } else {
@@ -182,13 +223,8 @@ fn format_operand(op: &Operand, segpref: Option<i32>, addr_dtype: OperandDataTyp
             }
         }
         OperandType::Phrase => {
-            let base = op.phrase().unwrap_or(0);
-            let base_name = x86_reg_name(base, addr_dtype);
-            if base_name.is_empty() {
-                format!("{}[reg{}]", seg_prefix, base)
-            } else {
-                format!("{}[{}]", seg_prefix, base_name)
-            }
+            let base_str = format_base_and_index(op, rex, addr_dtype);
+            format!("{}[{}]", seg_prefix, base_str)
         }
         OperandType::Near | OperandType::Far => {
             let addr = op.addr().unwrap_or(0);
@@ -205,7 +241,7 @@ fn format_operand(op: &Operand, segpref: Option<i32>, addr_dtype: OperandDataTyp
 ///
 /// Iterates over IDA's functions, builds CFGs via flow charts,
 /// decodes instructions, and maps them to ILOperations.
-pub(crate) fn lift_from_idb(idb: &IDB, info: BinaryInfo) -> LiftedProgram {
+pub(crate) fn lift_from_idb(idb: &IDB, info: BinaryInfo, image_bytes: &[u8]) -> LiftedProgram {
     let mut functions = HashMap::new();
     let entry_point = info.entry_point;
 
@@ -307,7 +343,7 @@ pub(crate) fn lift_from_idb(idb: &IDB, info: BinaryInfo) -> LiftedProgram {
     let mut iat_entries = build_iat_map(&info);
     let strings_at = build_string_map(idb, &info);
     let thunk_targets = build_thunk_map(&functions);
-    let import_apis_at = build_import_xref_map(idb, &info, &functions, &mut iat_entries);
+    let import_apis_at = build_import_xref_map(idb, &info, &functions, &mut iat_entries, image_bytes);
     let (insn_strings_at, insn_bytes_at) = build_insn_data_xref_maps(idb, &functions, &strings_at);
 
     LiftedProgram {
@@ -482,6 +518,38 @@ fn parse_bracket_hex(operand: &str) -> Option<u64> {
     u64::from_str_radix(&rest[..end], 16).ok()
 }
 
+/// Decode an x86/x64 `jmp` thunk stub's target VA directly from raw instruction bytes
+/// (`FF 25 disp32/va32`, `48 FF 25 disp32`, `E9 rel32`, `EB rel8`), handling packed
+/// 6-byte import jump tables even when IDA left individual entries unchunked.
+fn decode_raw_jmp_stub_target(raw: &[u8], ea: u64, is_64: bool) -> Option<u64> {
+    if raw.len() < 2 {
+        return None;
+    }
+    let (s, base_ea) = if is_64 && raw[0] == 0x48 {
+        (&raw[1..], ea + 1)
+    } else {
+        (raw, ea)
+    };
+    if s.len() >= 6 && s[0] == 0xFF && s[1] == 0x25 {
+        let raw32 = [s[2], s[3], s[4], s[5]];
+        if is_64 {
+            let disp = i32::from_le_bytes(raw32) as i64;
+            return Some(((base_ea as i64) + 6 + disp) as u64);
+        } else {
+            return Some(u32::from_le_bytes(raw32) as u64);
+        }
+    }
+    if s.len() >= 5 && s[0] == 0xE9 {
+        let disp = i32::from_le_bytes([s[1], s[2], s[3], s[4]]) as i64;
+        return Some(((base_ea as i64) + 5 + disp) as u64);
+    }
+    if s.len() >= 2 && s[0] == 0xEB {
+        let disp = (s[1] as i8) as i64;
+        return Some(((base_ea as i64) + 2 + disp) as u64);
+    }
+    None
+}
+
 /// Resolve API targets for `call` and `jmp` instructions using IDA's `CodeRefsFrom` /
 /// `DataRefsFrom` chains (up to `THUNK_CHAIN_DEPTH_DELTA = 5`) plus FLIRT `FUNC_LIB`
 /// callees, while also populating `iat_entries` for `[0x<addr>]` import slots referenced
@@ -491,8 +559,11 @@ fn build_import_xref_map(
     info: &BinaryInfo,
     functions: &HashMap<u64, LiftedFunction>,
     iat_entries: &mut HashMap<u64, (Option<String>, String)>,
+    image_bytes: &[u8],
 ) -> HashMap<u64, Vec<(Option<String>, String)>> {
     const THUNK_CHAIN_DEPTH_DELTA: usize = 5;
+    let is_64 = !matches!(info.arch, ArchType::I386);
+    let va_map = crate::extractor::BinaryVaMap::from_bytes(image_bytes);
 
     let import_names: std::collections::HashSet<String> =
         info.imports.iter().map(|i| i.name.clone()).collect();
@@ -547,39 +618,92 @@ fn build_import_xref_map(
 
                 let mut matched_import: Option<(Option<String>, String)> = None;
 
-                // 1. Follow CodeRefsFrom / DataRefsFrom chain up to THUNK_CHAIN_DEPTH_DELTA
-                // (resolves direct IAT calls, register-tracked `call rsi`, and chained thunks)
+                // 1. Follow CodeRefsFrom / DataRefsFrom / raw `jmp [IAT]` chain up to THUNK_CHAIN_DEPTH_DELTA
+                // (resolves direct IAT calls, register-tracked `call rsi`, packed `FF 25` stubs, and chained thunks,
+                // even when IDA attaches a synthetic `extern` CodeRef alongside the real `.rdata` IAT DataRef/bytes).
                 let mut ref_ea = insn.address;
-                for _ in 0..THUNK_CHAIN_DEPTH_DELTA {
-                    let next_opt = code_refs_from(idb, ref_ea)
-                        .into_iter()
-                        .next()
-                        .or_else(|| data_refs_from(idb, ref_ea).into_iter().next());
-                    let Some(next_ea) = next_opt else {
+                for hop in 0..THUNK_CHAIN_DEPTH_DELTA {
+                    let mut candidates: Vec<u64> = Vec::new();
+                    if hop == 0 {
+                        for op in &insn.operations {
+                            if let ILOperation::Branch { target: Some(t), .. } = op {
+                                if !candidates.contains(t) {
+                                    candidates.push(*t);
+                                }
+                            }
+                        }
+                    }
+                    for c in code_refs_from(idb, ref_ea) {
+                        if !candidates.contains(&c) {
+                            candidates.push(c);
+                        }
+                    }
+                    for d in data_refs_from(idb, ref_ea) {
+                        if !candidates.contains(&d) {
+                            candidates.push(d);
+                        }
+                    }
+                    if hop > 0 || insn.mnemonic == "jmp" {
+                        if let Some(disk_slice) = va_map.slice_at_va(image_bytes, ref_ea, 7) {
+                            if let Some(raw_tgt) = decode_raw_jmp_stub_target(disk_slice, ref_ea, is_64) {
+                                if !candidates.contains(&raw_tgt) {
+                                    candidates.push(raw_tgt);
+                                }
+                            }
+                        }
+                        let stub_bytes = read_bytes_at_seg_bounded(idb, ref_ea, 7);
+                        if let Some(raw_tgt) = decode_raw_jmp_stub_target(&stub_bytes, ref_ea, is_64) {
+                            if !candidates.contains(&raw_tgt) {
+                                candidates.push(raw_tgt);
+                            }
+                        }
+                    }
+                    if candidates.is_empty() {
+                        break;
+                    }
+
+                    for &cand_ea in &candidates {
+                        if let Some(imp) = imports_by_addr.get(&cand_ea) {
+                            matched_import = Some(imp.clone());
+                            break;
+                        }
+                        let sym_hit = addr_sym_cache
+                            .entry(cand_ea)
+                            .or_insert_with(|| {
+                                functions
+                                    .get(&cand_ea)
+                                    .and_then(|tf| tf.name.clone())
+                                    .or_else(|| idb.function_at(cand_ea).and_then(|tf| tf.name()))
+                                    .or_else(|| idb.address_to_string(cand_ea))
+                                    .and_then(|sym| match_import_symbol(&sym, &import_names))
+                            })
+                            .clone();
+                        if let Some(name) = sym_hit {
+                            let module = name_to_module.get(&name).cloned().flatten();
+                            matched_import = Some((module, name));
+                            break;
+                        }
+                    }
+                    if matched_import.is_some() {
+                        break;
+                    }
+
+                    let chain_target = candidates.into_iter().find(|&cand_ea| {
+                        cand_ea != ref_ea
+                            && (functions.get(&cand_ea).is_some_and(|tf| {
+                                tf.is_thunk || (tf.basic_blocks.len() == 1 && tf.basic_blocks[0].instructions.len() <= 3)
+                            }) || va_map
+                                .slice_at_va(image_bytes, cand_ea, 7)
+                                .and_then(|s| decode_raw_jmp_stub_target(s, cand_ea, is_64))
+                                .is_some()
+                                || {
+                                    let stub_bytes = read_bytes_at_seg_bounded(idb, cand_ea, 7);
+                                    decode_raw_jmp_stub_target(&stub_bytes, cand_ea, is_64).is_some()
+                                })
+                    });
+                    let Some(next_ea) = chain_target else {
                         break;
                     };
-                    if let Some(imp) = imports_by_addr.get(&next_ea) {
-                        matched_import = Some(imp.clone());
-                        break;
-                    }
-                    let sym_hit = addr_sym_cache
-                        .entry(next_ea)
-                        .or_insert_with(|| {
-                            idb.address_to_string(next_ea)
-                                .and_then(|sym| match_import_symbol(&sym, &import_names))
-                        })
-                        .clone();
-                    if let Some(name) = sym_hit {
-                        let module = name_to_module.get(&name).cloned().flatten();
-                        matched_import = Some((module, name));
-                        break;
-                    }
-                    let is_chainable = functions
-                        .get(&next_ea)
-                        .is_some_and(|tf| tf.is_thunk || (tf.basic_blocks.len() == 1 && tf.basic_blocks[0].instructions.len() <= 3));
-                    if !is_chainable {
-                        break;
-                    }
                     ref_ea = next_ea;
                 }
 
@@ -739,10 +863,11 @@ fn lift_instructions(idb: &IDB, start: u64, end: u64, addr_dtype: OperandDataTyp
         let mut operands = Vec::new();
         let mut operand_values = Vec::new();
         let segpref = insn.segpref();
+        let rex = insn.insnpref();
 
         for n in 0..insn.operand_count() {
             let (op_str, op_val) = if let Some(op) = insn.operand(n) {
-                let s = format_operand(&op, segpref, addr_dtype);
+                let s = format_operand(&op, segpref, rex, addr_dtype);
                 let v = operand_numeric_value(op.type_(), op.dtype(), op.value(), op.addr());
                 (s, v)
             } else {
@@ -971,6 +1096,30 @@ mod tests {
         );
         assert_eq!(
             operand_numeric_value(OperandType::Reg, OperandDataType::QWord, None, None),
+            None
+        );
+    }
+
+    #[test]
+    fn test_decode_raw_jmp_stub_target() {
+        // Real 6-byte RIP-relative `jmp [rip + 0x87ce]` at 0x1400bc0f4 -> 0x1400c48c8 (`NetShareEnum`)
+        assert_eq!(
+            decode_raw_jmp_stub_target(&[0xff, 0x25, 0xce, 0x87, 0x00, 0x00], 0x1400bc0f4, true),
+            Some(0x1400c48c8)
+        );
+        // Real 6-byte RIP-relative `jmp [rip + 0x5812]` at 0x1a002d2b0 -> 0x1a0032ac8 (`getenv`)
+        assert_eq!(
+            decode_raw_jmp_stub_target(&[0xff, 0x25, 0x12, 0x58, 0x00, 0x00], 0x1a002d2b0, true),
+            Some(0x1a0032ac8)
+        );
+        // 32-bit `jmp dword ptr [0x100140ac]`
+        assert_eq!(
+            decode_raw_jmp_stub_target(&[0xff, 0x25, 0xac, 0x40, 0x01, 0x10], 0x10002000, false),
+            Some(0x100140ac)
+        );
+        // Negative: non-jmp instruction
+        assert_eq!(
+            decode_raw_jmp_stub_target(&[0x48, 0x89, 0x5c, 0x24, 0x08, 0x57], 0x140001000, true),
             None
         );
     }
