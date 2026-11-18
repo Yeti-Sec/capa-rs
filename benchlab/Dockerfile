@@ -21,7 +21,8 @@ WORKDIR /src
 ENV IDASDK_ROOT=/opt/ida-sdk/src \
     IDADIR=/opt/ida
 RUN cargo build --release --bin capa-rs --features ida-backend,dotnet \
-    && rm -rf /src/capa-rules/.github
+    && rm -rf /src/capa-rules/.github \
+    && mkdir -p /src/sigs
 
 FROM ${BASE_IMAGE}
 COPY --from=build /src/target/release/capa-rs /usr/local/bin/capa-rs
@@ -30,8 +31,9 @@ COPY --from=build /src/capa-rules /opt/capa-rules
 # FLIRT is opt-in via `capa-rs --signatures /opt/capa-rs/sigs` or CAPA_SIGS_DIR (the
 # adapter sets neither). IDA's plan_to_apply_idasgn only accepts a short file name, so
 # the files are also placed in IDA's sig/pc directory.
+# sigs/ may be absent (the rust-services mirror excludes it); the directory is then empty.
 COPY --from=build /src/sigs /opt/capa-rs/sigs
-RUN mkdir -p /opt/ida/sig/pc && cp /opt/capa-rs/sigs/*.sig /opt/ida/sig/pc/
+RUN mkdir -p /opt/ida/sig/pc && find /opt/capa-rs/sigs -name '*.sig' -exec cp {} /opt/ida/sig/pc/ \;
 COPY --from=build /src/enhanced-dotnet-rules /opt/enhanced-dotnet-rules
 ENV CAPA_RULES=/opt/capa-rules \
     IDADIR=/opt/ida \
